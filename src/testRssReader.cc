@@ -1,27 +1,26 @@
 /*************************************************************************
-    > File Name: testDirScanner.cc
+    > File Name: testRssReader.cc
     > Author: JiaZiChunQiu
-    > Created Time: 2024年10月12日 星期六 11时26分01秒
+    > Created Time: 2024年10月13日 星期日 16时32分52秒
     > Mail: JiaZiChunQiu@163.com
-    > Title:
+    > Title: xml 文件解析测试
     > Content:
  ************************************************************************/
 
-#include "DirScanner.h"
+#include <RssReader.h>
 
 #include <iostream>
 
-#define YULIAO_CONF_PATH "./conf/yuliao_zn.conf"
+#define XML_PATH "./resource/web_rmw/auto.xml"
 
 /* =============== test =============== */
 void test0() {
-    DirScanner dirScanner(YULIAO_CONF_PATH);
-    dirScanner();
-    std::vector<std::string> files = dirScanner.getFiles();
-    for ( std::string & file : files ) {
-        std::cout << "filepath : " << file << "\n";
-    }
+    RssReader rssReader;
+    rssReader.parseRss(XML_PATH);
+    // rssReader.showRssVec();
+    rssReader.dump("./data/testRss.dat");
 }
+
 /* =============== main =============== */
 int main (int argc, char* argv[]) {
     test0();

@@ -21,9 +21,9 @@ public:
     static Configuration * getInstance(const std::string & filePath = "");
     std::map<std::string, std::string> & getConfigMap();
     void setFilePath(const std::string & filePath); // 重置配置文件路径
+    std::string getFilePath();
 private:
     Configuration(const std::string & filePath = "");
-    // Configuration();
     ~Configuration();
 
     void readConfigFile(); // 读取配置信息到数据结构

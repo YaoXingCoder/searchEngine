@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# resource files
+./resource/
+*.dat
+*.txt
+*.xml

@@ -49,13 +49,31 @@ Configuration * Configuration::getInstance(const std::string & filePath) {
 }
 
 void Configuration::setFilePath(const std::string & filePath) {
+    if ( filePath.empty() ) {
+        std::cerr << "setFilePath is empty\n";
+        return;
+    }
     if ( !_configs.empty() ) {
         _configs.clear(); // 每次重新设置路径都需清空
     }
     _configFilePath = filePath;
 }
 
+std::string Configuration::getFilePath() {
+    if ( _configFilePath.empty() ) {
+        return "_configFilePath id empty";
+    } else {
+        return _configFilePath;
+    }
+}
+
 void Configuration::readConfigFile() {
+    // 0.配置路径是否空
+    if ( _configFilePath.empty() ) {
+        std::cerr << "In readConfigFile the _configFilePath is empty\n";
+        return;
+    }
+
     // 1.关联文件
     std::ifstream ifs(_configFilePath);
     if ( !ifs ){
@@ -68,7 +86,7 @@ void Configuration::readConfigFile() {
     std::string val;
     while ( std::getline(ifs, key, '=') && std::getline(ifs, val) ) {
         if ( key[0] == '#' ) { continue; } // 注释忽略
-        //  std::cout << "key = " << key << ", value = " << val << "\n";
+        // std::cout << "key = " << key << ", value = " << val << "\n";
         _configs[key] = val;
     }
 
