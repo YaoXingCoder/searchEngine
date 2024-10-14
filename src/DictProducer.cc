@@ -39,7 +39,7 @@ DictProducer::DictProducer(const std::string & confPathEN)
     readFromConfigEN(confPathEN);
 }
 
-DictProducer::DictProducer(const std::string & confPathZN, SplitTool * splitTool) 
+DictProducer::DictProducer(const std::string & confPathZN, std::shared_ptr<SplitTool> splitTool) 
 : _filesEN()
 , _filesZN()
 , _filesSTOP()
@@ -55,7 +55,7 @@ DictProducer::DictProducer(const std::string & confPathZN, SplitTool * splitTool
     readFromConfigZN(confPathZN);
 }
 
-DictProducer::DictProducer(const std::string & confPathEN, const std::string & confPathZN, SplitTool * splitTool)
+DictProducer::DictProducer(const std::string & confPathEN, const std::string & confPathZN, std::shared_ptr<SplitTool> splitTool)
 : _filesEN()
 , _filesZN()
 , _filesSTOP()

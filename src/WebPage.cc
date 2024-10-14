@@ -17,7 +17,7 @@
 #include <algorithm>
 
 /* 构造 */ 
-WebPage::WebPage(std::string & doc, SplitTool * splitTool)
+WebPage::WebPage(std::string & doc, std::shared_ptr<SplitTool> splitTool)
 : _doc(doc)
 /* , _docId() */
 /* , _docTitle() */

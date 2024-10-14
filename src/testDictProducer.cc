@@ -27,18 +27,17 @@ void test0() {
 
 void test1() {
     // 两个参数能够处理中文
-    SplitTool * splitTool = new SplitToolCppJieba();
+    std::shared_ptr<SplitTool> splitTool(new SplitToolCppJieba());
     DictProducer dictPro(YULIAO_ZN_CONF_PATH, splitTool);
     dictPro.showFiles();
     dictPro.buildCnDict();
     dictPro.storeVecFromMap();
     dictPro.showDict();
-    delete splitTool;
 }
 
 void test2() {
     // 三个参数处理中英文
-    SplitTool * splitTool = new SplitToolCppJieba();
+    std::shared_ptr<SplitTool> splitTool(new SplitToolCppJieba());
     DictProducer dictPro(YULIAO_EN_CONF_PATH, YULIAO_ZN_CONF_PATH, splitTool);
     dictPro.showFiles();
     
@@ -48,7 +47,6 @@ void test2() {
 
     dictPro.storeDict();
     dictPro.storeIndex();
-    delete splitTool;
 }
 
 /* =============== main =============== */

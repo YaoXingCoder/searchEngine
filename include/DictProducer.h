@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <memory>
 
 #define DEST_DICT "./data/dict.dat" // 词典文件路径
 #define DEST_INDEX "./data/dictIndex.dat" // 词典索引文件路径
@@ -21,8 +22,8 @@ class SplitTool;
 class DictProducer {
 public:
     DictProducer(const std::string & confPathEN); // 处理英文
-    DictProducer(const std::string & confPathZN, SplitTool * splitTool); // splitTool 中文处理
-    DictProducer(const std::string & confPathEN, const std::string & confPathZN, SplitTool * splitTool); // 中英文处理
+    DictProducer(const std::string & confPathZN, std::shared_ptr<SplitTool> splitTool); // splitTool 中文处理
+    DictProducer(const std::string & confPathEN, const std::string & confPathZN, std::shared_ptr<SplitTool> splitTool); // 中英文处理
     ~DictProducer();
 public:
     /* 字典 */
@@ -66,7 +67,7 @@ private:
     std::unordered_set<std::string> _dict_stop; // 停用词 词典
 
     std::map<std::string, std::set<int>> _index; // 单词在 vector 词典中出现的位置(下标)
-    SplitTool * _splitTool; // 分词工具
+    std::shared_ptr<SplitTool> _splitTool;
 };
 
 #endif

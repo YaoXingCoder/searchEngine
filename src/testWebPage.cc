@@ -31,8 +31,9 @@ void test0() {
     std::set<std::string> stopWord{"积极", "他", "疫情", "，", ",", " "};
 
     // 实参准备
-    SplitTool * splitTool = new SplitToolCppJieba();
-    WebPage webPage(doc, splitTool);
+    // std::shared_ptr<SplitTool> splitTool(new SplitToolCppJieba());
+    // WebPage webPage(doc, splitTool);
+    WebPage webPage(doc, std::shared_ptr<SplitTool>(new SplitToolCppJieba()));
 
     // 对象初始化测试
     webPage.processDoc(doc);
@@ -61,10 +62,10 @@ void test0() {
     //         << docItem.content << "\n";
 
     // 容器获取测试
-    // std::map<std::string, int> dict = webPage.getDict();
-    // for ( std::pair<const std::string, int> & pair : dict) {
-    //     std::cout << "word is " << pair.first << ", frequency is " << pair.second << "\n";
-    // }
+    std::map<std::string, int> dict = webPage.getDict();
+    for ( std::pair<const std::string, int> & pair : dict) {
+        std::cout << "word is " << pair.first << ", frequency is " << pair.second << "\n";
+    }
 }
 
 /* =============== main =============== */

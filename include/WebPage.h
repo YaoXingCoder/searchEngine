@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <memory>
 
 class Configuration;
 class SplitTool;
@@ -20,7 +21,7 @@ typedef struct {
 /* WebPage 类 */
 class WebPage {
 public:
-    WebPage(std::string & doc, SplitTool * splitTool);
+    WebPage(std::string & doc, std::shared_ptr<SplitTool> splitTool);
 
     std::size_t getDocId(); // 获取 _docId
     DocItem & getDocItem(); // 获取文档结构, 引用减少copy
@@ -55,7 +56,7 @@ private:
     std::vector<std::string> _topWords; // 词频最高的前20个词
     std::map<std::string, int> _wordsMap; // 保存每篇文档的所有词语和词频, 不包括停用词
 
-    SplitTool * _splitTool; // jieba 工具类
+    std::shared_ptr<SplitTool> _splitTool; // jieba 工具类
                             //
     const static int TOPK_NUMBER = 20; // 词频最高的前20词
 };
