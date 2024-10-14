@@ -19,22 +19,20 @@
 /* 构造 */ 
 WebPage::WebPage(std::string & doc, std::shared_ptr<SplitTool> splitTool)
 : _doc(doc)
-/* , _docId() */
-/* , _docTitle() */
-/* , _docUrl() */
-/* , _docContent() */
 , _docItem()
 , _topWords()
 , _wordsMap()
 , _splitTool(splitTool)
 {
-    _topWords.reserve(TOPK_NUMBER); // 预留空间
+    // _topWords.reserve(TOPK_NUMBER); // 预留空间
+
+    processDoc(doc);
 }
 
 /* 析构 */
 WebPage::~WebPage() {}
 
-/* 变量获取 */
+/* 成员变量获取 */
 std::size_t WebPage::getDocId() {
     return _docItem.id;
 }
@@ -69,29 +67,29 @@ void WebPage::parseXML(const std::string & doc) {
     tinyxml2::XMLElement * item = parseStr.RootElement();
 
     // 3.根据节点提取出内容
-    // 3.1.docid
-    /* tinyxml2::XMLElement * element = item->FirstChildElement("docid"); */
-    _docItem.id = std::stoi(item->FirstChildElement("docid")->GetText());
-    // 3.2.tilte
-    /* element = item->FirstChildElement("title"); */
-    /* _docItem.title = element->GetText(); */
-   _docItem.title = item->FirstChildElement("title")->GetText();
-    // 3.3.link
-    /* element = item->FirstChildElement("link"); */
-    /* _docItem.url link = element->GetText(); */
-    _docItem.url = item->FirstChildElement("link")->GetText();
-    // 3.4.content
-    /* element = item->FirstChildElement("content"); */
-    /* _docItem.content = element->GetText(); */
-    _docItem.content = item->FirstChildElement("content")->GetText();
+    // 3.1 docid
+    std::size_t docid = std::stoi(item->FirstChildElement(DOCID)->GetText());
+    _docItem.id = docid;
+    // 3.2 tilte
+    std::string title = item->FirstChildElement(TITLE)->GetText();
+    if ( !title.empty() ) { _docItem.title = title; }
+    else { _docItem.title = "title is empty"; }
+    // 3.3 link
+    std::string url = item->FirstChildElement(URL)->GetText();
+    if ( !url.empty() ) { _docItem.url = url; }
+    else { _docItem.url = "url is empty"; }
+    // 3.4 content
+    std::string content = item->FirstChildElement(CONTENT)->GetText();
+    if ( !content.empty() ) { _docItem.content = content; }
+    else { _docItem.content = "content is empty"; }
 }
 
 /* 获取文档的topk词集 */
 void WebPage::calcTopK(std::vector<std::string> & wordsVec, std::set<std::string> & stopWordSet, int k) {
-    // 1.处理 content 内容
+    // 1.处理 content 内容 : 分词->排序->放入容器
     parseContent(_docItem.content, stopWordSet);
 
-    // 2.返回值
+    // 2.根据参数获取k个top词, 并放入给定的wordsVec中
     for ( int i = 0; i < k && i < _topWords.size(); ++i ) {
         wordsVec.push_back(_topWords[i]);
     }
@@ -150,3 +148,36 @@ void WebPage::showTopWords() {
     }
 }
 
+
+/* 丢弃代码, Expired  */
+/* OLD : 处理XML格式的字符串 */
+// void WebPage::parseXML(const std::string & doc) {
+//     // 1.创建对象
+//     tinyxml2::XMLDocument parseStr;
+//     tinyxml2::XMLError error =  parseStr.Parse(doc.c_str(), doc.size());
+//     if ( error != tinyxml2::XMLError::XML_SUCCESS ) {
+//         std::cerr << "RssReader parseRss LoadFile error\n";
+//         std::cerr << "ERROR : " << parseStr.ErrorStr() << "\n";
+//         return;
+//     }
+
+//     // 2.定位节点 item : item 下有 title link content
+//     tinyxml2::XMLElement * item = parseStr.RootElement();
+
+//     // 3.根据节点提取出内容
+//     // 3.1.docid
+//     /* tinyxml2::XMLElement * element = item->FirstChildElement("docid"); */
+//     _docItem.id = std::stoi(item->FirstChildElement("docid")->GetText());
+//     // 3.2.tilte
+//     /* element = item->FirstChildElement("title"); */
+//     /* _docItem.title = element->GetText(); */
+//    _docItem.title = item->FirstChildElement("title")->GetText();
+//     // 3.3.link
+//     /* element = item->FirstChildElement("link"); */
+//     /* _docItem.url link = element->GetText(); */
+//     _docItem.url = item->FirstChildElement("link")->GetText();
+//     // 3.4.content
+//     /* element = item->FirstChildElement("content"); */
+//     /* _docItem.content = element->GetText(); */
+//     _docItem.content = item->FirstChildElement("content")->GetText();
+// }

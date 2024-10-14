@@ -28,6 +28,25 @@ PageLib::PageLib(DirScanner & dirScanner)
 /* 析构 */
 PageLib::~PageLib() {}
 
+/* 处理文本 删除 '\t' '\n' ' ' */
+void PageLib::dealText(std::string & text) {
+    // 1.判空
+    // if ( text.empty() ) { 
+    //     std::cerr << "PageLib dealText() text is empty()\n";
+    //     return;
+    // }
+
+    // 2.处理
+    std::string::iterator it = text.begin();
+    while ( it < text.end() ) {
+        if ( *it == '\n' || *it == '\t' || *it == ' ' || *it == '\r') {
+            it = text.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 /* 构建网页库和偏移库到容器 */
 void PageLib::create() {
     // 1.执行扫面对象, 将路径放入临时的容器
@@ -38,30 +57,53 @@ void PageLib::create() {
     RssReader rssReader;
     std::size_t offset = 0; // 记录偏移量
     std::size_t docid = 1; // 记录行号
-    // 每次循环一个网页 xml 文件
+
+    // 2.每次循环一个网页 xml 文件
     for ( std::string & path : pathVec) {
-        // 2.1.解析文件, 并存入(添加)给定容器中
+        // 2.1 解析文件, 并存入(添加)给定容器中
         std::vector<RssItem> rssVec;
         rssReader.parseRss(path, rssVec);
         
-        // 2.2.存放网页文件
+        // 2.2 存放网页文件
         for ( RssItem & rssItem : rssVec ) {
             std::ostringstream oss;
+            // 2.3 每次判空后再写入
             oss << "<doc>" << "\r\n";
             oss << "\t" << "<docid>" << std::to_string(docid) << "</docid>" << "\r\n";
-            oss << "\t" << "<title>" << rssItem.title << "</title>" << "\r\n";
-            oss << "\t" << "<link>" << rssItem.link << "</link>" << "\r\n";
-            oss << "\t" << "<content>" << rssItem.description << "</content>" << "\r\n";
+
+            if ( !rssItem.title.empty() ) { 
+                dealText(rssItem.title);
+                oss << "\t" << "<title>" << rssItem.title << "</title>" << "\r\n"; 
+            } else { 
+                oss << "\t" << "<title>" << "title is empty" << "</title>" << "\r\n"; 
+            }
+
+            if ( !rssItem.link.empty() ) { 
+                dealText(rssItem.link);
+                oss << "\t" << "<link>" << rssItem.link << "</link>" << "\r\n"; 
+            } else { 
+                oss << "\t" << "<link>" << "link is empty" << "</link>" << "\r\n"; 
+            }
+
+            if ( !rssItem.description.empty() ) { 
+                dealText(rssItem.description);
+                oss << "\t" << "<content>" << rssItem.description << "</content>" << "\r\n"; 
+            } else { 
+                oss << "\t" << "<content>" << "content is empty" << "</content>" << "\r\n"; 
+            }
+
             oss << "</doc>" << "\r\n";
 
-            // 2.3.每个网页放入容器中
+            // 2.4 每个网页放入容器中
             _pages.emplace_back(oss.str()); // 将内容放入容器
 
-            // 2.4.存放每个网页文件偏移量
-            offset += oss.str().size();
+            // 2.5 存放每个网页文件偏移量
             _offsetLib.emplace(docid, std::make_pair(offset, oss.str().size()));
 
-            // 2.5.不忘记 docid++
+            // 2.6 累计偏移量
+            offset += oss.str().size();
+
+            // 2.7 不忘记 docid++
             ++docid; // id自增
         }
     }

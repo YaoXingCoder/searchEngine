@@ -57,6 +57,25 @@ RssReader::RssReader(const int capacity)
 
 RssReader::~RssReader() {} // 析构
 
+/* 处理文本 删除 '\t' '\n' ' ' */
+void RssReader::dealText(std::string & text) {
+    // 1.判空
+    if ( text.empty() ) { 
+        // std::cerr << "PageLib dealText() text is empty()\n";
+        return;
+    }
+
+    // 2.处理
+    std::string::iterator it = text.begin();
+    while ( it < text.end() ) {
+        if ( *it == '\n' || *it == '\t' || *it == ' ' || *it == '\r') {
+            it = text.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void RssReader::parseRss(const std::string & xmlFilePath) {
     // 1.关联xml文件
     tinyxml2::XMLDocument doc; // 创建结构对象
@@ -77,19 +96,26 @@ void RssReader::parseRss(const std::string & xmlFilePath) {
     // 4.循环遍历所有的item节点
     while (item) {
         RssItem rssItem;
+
         // 4.1 tilte 节点
         tinyxml2::XMLElement * element = item->FirstChildElement("title");
         rssItem.title = element->GetText();
+
         // 4.2 link 节点
         element = item->FirstChildElement("link");
         rssItem.link = element->GetText();
+
         // 4.3 description 节点, 需要处理 html 格式, 同时判断子节点的名字
         if ( (element = item->FirstChildElement("description")) != nullptr ) {
-            rssItem.description = std::regex_replace(element->GetText(), html_regex, "");
+            std::string description = std::regex_replace(element->GetText(), html_regex, "");
+            dealText(description);
+            rssItem.description = description;
         } else if ( (element = item->FirstChildElement("content")) != nullptr ) {
-            rssItem.description = std::regex_replace(element->GetText(), html_regex, "");
+            std::string description = std::regex_replace(element->GetText(), html_regex, "");
+            dealText(description);
+            rssItem.description = description;
         } else {
-            rssItem.description = "";
+            rssItem.description = "content is empty";
         }
         
         // 4.4 存入容器
@@ -100,8 +126,9 @@ void RssReader::parseRss(const std::string & xmlFilePath) {
     }
 }
 
+/* 存入给定的容器 */
 void RssReader::parseRss(const std::string & xmlFilePath, std::vector<RssItem> & rssVec) {
-        // 1.关联xml文件
+    // 1.关联xml文件
     tinyxml2::XMLDocument doc; // 创建结构对象
     tinyxml2::XMLError error = doc.LoadFile(xmlFilePath.c_str()); // 加载xml文件
     if ( error != tinyxml2::XMLError::XML_SUCCESS ) {
@@ -124,15 +151,20 @@ void RssReader::parseRss(const std::string & xmlFilePath, std::vector<RssItem> &
         // 4.1 tilte 节点
         tinyxml2::XMLElement * element = item->FirstChildElement("title");
         rssItem.title = element->GetText();
+
         // 4.2 link 节点
         element = item->FirstChildElement("link");
         rssItem.link = element->GetText();
+
         // 4.3 description 节点, 需要处理 html 格式, 同时判断子节点的名字
         if ( (element = item->FirstChildElement("description")) != nullptr ) {
-            rssItem.description = std::regex_replace(element->GetText(), html_regex, "");
+            std::string description = std::regex_replace(element->GetText(), html_regex, "");
+            dealText(description);
+            rssItem.description = description;
         } else if ( (element = item->FirstChildElement("content")) != nullptr ) {
-            rssItem.description = std::regex_replace(element->GetText(), html_regex, "");
-        } else {
+            std::string description = std::regex_replace(element->GetText(), html_regex, "");
+            dealText(description);
+            rssItem.description = description;
             rssItem.description = "content is empty";
         }
         

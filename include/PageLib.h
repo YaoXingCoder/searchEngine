@@ -26,8 +26,13 @@ public:
     /* 测试 */
     void showPages();
     void showOffsetLib();
+
+private:
+    void dealText(std::string & text);
+
 public:
     ~PageLib(); // 析构
+
 private:
     DirScanner & _dirScanner; // 扫描对象目录的引用
     std::vector<std::string> _pages; // 存放格式化之后的网页的容器
