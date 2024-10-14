@@ -14,11 +14,10 @@
 #include <iostream>
 
 #define XML_CONF "./conf/xml_path.conf"
-// #define YULIAO_ZN_CONF_PATH "./conf/yuliao_zn.conf"
 
 /* =============== test =============== */
 void test0() {
-    DirScanner dirScanner(XML_CONF);
+    DirScanner dirScanner(XML_CONF); // 创建扫面对象
     // DirScanner dirScanner(XML_CONF, ".txt");
     // dirScanner();
     // std::cout << Configuration::getInstance()->getFilePath() << "\n";
@@ -26,7 +25,6 @@ void test0() {
 
     PageLib pageLib(dirScanner);
     // dirScanner.showFiles();
-    pageLib.create();
     // pageLib.showPages();
     // pageLib.showOffsetLib();
     pageLib.store();

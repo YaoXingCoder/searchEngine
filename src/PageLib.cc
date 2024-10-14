@@ -21,11 +21,14 @@ PageLib::PageLib(DirScanner & dirScanner)
 , _pages()
 , _offsetLib()
 {
-    _pages.reserve(INIT_CAPACITY); // 预留空间
+    _pages.reserve(_initCapacity); // 预留空间
+    create(); // 创建
 }
 
+/* 析构 */
 PageLib::~PageLib() {}
 
+/* 构建网页库和偏移库到容器 */
 void PageLib::create() {
     // 1.执行扫面对象, 将路径放入临时的容器
     _dirScanner();
@@ -64,6 +67,52 @@ void PageLib::create() {
     }
 }
 
+/* 存储容器到给定文件  */
+void PageLib::store(const std::string & pagesLibPath, const std::string & offsetLibPath) {
+    storePages(pagesLibPath);
+    storeOffset(offsetLibPath);
+}
+
+/* 网页数据写入给定文件 */
+void PageLib::storePages(const std::string & pagesLibPath) {
+    // 1.打开给定存放文件
+    std::ofstream ofs(pagesLibPath);
+    if ( !ofs ) {
+        std::cerr << "PageLib storePages() ofs error\n";
+        return;
+    }
+
+    // 2.内容存放进文件
+    for ( std::string & page : _pages ) {
+        ofs << page;
+    }
+
+    // 3.关闭资源
+    ofs.close();
+}
+
+
+/* 偏移量写入给定文件 */
+void PageLib::storeOffset(const std::string & offsetLibPath) {
+    // 1.打开给定存放文件
+    std::ofstream ofs(offsetLibPath);
+    if ( !ofs ) {
+        std::cerr << "PageLib storeOffset() ofs error\n";
+        return;
+    }
+
+    // 2.内容存放进文件
+    for ( std::pair<const std::size_t, std::pair<std::size_t, std::size_t>> & pair_offset : _offsetLib ) {
+        ofs << pair_offset.first << " " << pair_offset.second.first << " " << pair_offset.second.second << "\r\n";
+    }
+
+    // 3.关闭资源
+    ofs.close();
+}
+
+/*
+* 测试
+*/
 /* 测试网页数据容器  */ 
 void PageLib::showPages() {
     if ( _pages.empty() ) { 
@@ -84,47 +133,4 @@ void PageLib::showOffsetLib() {
     for ( std::pair<const std::size_t, std::pair<std::size_t, std::size_t>> & pair_offset : _offsetLib ) {
         std::cout << pair_offset.first << " " << pair_offset.second.first << " " << pair_offset.second.second << "\r\n";
     }
-}
-
-/* 存储两个容器到文件  */
-void PageLib::store() {
-    storePages();
-    storeOffset();
-}
-
-/* 网页数据写入给定文件 */
-void PageLib::storePages() {
-    // 1.打开给定存放文件
-    std::ofstream ofs(NEW_RIPE_PAGE);
-    if ( !ofs ) {
-        std::cerr << "PageLib storePages() ofs error\n";
-        return;
-    }
-
-    // 2.内容存放进文件
-    for ( std::string & page : _pages ) {
-        ofs << page;
-    }
-
-    // 3.关闭资源
-    ofs.close();
-}
-
-
-/* 偏移量写入给定文件 */
-void PageLib::storeOffset() {
-    // 1.打开给定存放文件
-    std::ofstream ofs(NEW_OFFSET);
-    if ( !ofs ) {
-        std::cerr << "PageLib storeOffset() ofs error\n";
-        return;
-    }
-
-    // 2.内容存放进文件
-    for ( std::pair<const std::size_t, std::pair<std::size_t, std::size_t>> & pair_offset : _offsetLib ) {
-        ofs << pair_offset.first << " " << pair_offset.second.first << " " << pair_offset.second.second << "\r\n";
-    }
-
-    // 3.关闭资源
-    ofs.close();
 }

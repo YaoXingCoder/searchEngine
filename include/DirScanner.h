@@ -16,14 +16,17 @@ public:
     void operator()(); // 创建 Configuration 类, 循环读取路径并执行 traverse, 同时存储路径到 _files 中
 
     std::vector<std::string> & getFiles(); // 获取 _files 容器
+    
 public:
     void showFiles(); // 测试 : 遍历容器
     ~DirScanner();
+
 private:
     void traverseAll(const std::string & dirName); // 获取某目录文件下的所有文件
     void traverseSuffix(const std::string & dirName); // 遍历指定后缀文件
+
 private:
-    std::vector<std::string> _files; // 存放每个xml文件的绝对路径
+    std::vector<std::string> _files; // 存放每个 xml 文件的绝对路径
     std::string _confPath; // 配置路径
     std::string _suffix; // 指定后缀
 };

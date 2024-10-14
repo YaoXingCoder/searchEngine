@@ -37,6 +37,7 @@ DirScanner::DirScanner(const std::string & confPath, const std::string & suffix)
 
 DirScanner::~DirScanner() {}
 
+/* 设置配置文件路径 */
 void DirScanner::setConfPath(const std::string & confPath) {
     if ( confPath.empty() ) {
         std::cerr << "DirScanner setConfPath() is null\b";
@@ -46,6 +47,7 @@ void DirScanner::setConfPath(const std::string & confPath) {
     _confPath = confPath;
 }
 
+/* 设置文件后缀 */
 void DirScanner::setSuffix(const std::string & suffix) {
     if ( suffix.empty() ) {
         std::cerr << " DirScanner setSuffix() is null\n";
@@ -60,7 +62,7 @@ void DirScanner::setSuffix(const std::string & suffix) {
 void DirScanner::operator()() {
     // 0.路径判空
     if ( _confPath.empty() ) { 
-        std::cerr << "_confPath is empty\n";
+        std::cerr << "DirScanner _confPath is empty\n";
         return;
     }
     
@@ -68,16 +70,22 @@ void DirScanner::operator()() {
     Configuration::getInstance()->setFilePath(_confPath);
     std::map<std::string, std::string> & configs = Configuration::getInstance()->getConfigMap();
 
-    // 2.判断是否指定文件后缀
+    // 2.判断路径配置文件是否为空
+    if ( configs.empty() ) {
+        std::cerr << "DirScanner operator() configFile is empty\n";
+        return;
+    }
+
+    // 3.判断是否有指定文件后缀
     if ( _suffix.empty() ) {
         for ( std::pair<const std::string, std::string> & pair : configs ) {
             // std::cout << "DirScanner read from Configuration is "  << pair.second << "\n";
-            traverseAll(pair.second);
+            if (  !pair.second.empty() ) { traverseAll(pair.second); }
         }
     } else {
         for ( std::pair<const std::string, std::string> & pair : configs ) {
             // std::cout << "DirScanner read from Configuration is "  << pair.second << "\n";
-            traverseSuffix(pair.second);
+            if (  !pair.second.empty() ) { traverseSuffix(pair.second); }
         }
     }
 }
@@ -128,6 +136,7 @@ void DirScanner::traverseAll(const std::string & dirName) {
     closedir(pdir);
 }
 
+/* 指定文件后缀遍历 */
 void DirScanner::traverseSuffix(const std::string & dirName) {
     // std::cout << "DirScanner traverse() dirName is "  << dirName << "\n";
     // 1.打开指定目录描述符

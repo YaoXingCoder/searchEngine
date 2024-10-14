@@ -33,7 +33,7 @@ void PageLibPreprocessor::readInfoFromFile() {
     std::map<std::string, std::string> confMap = Configuration::getInstance()->getConfigMap();
     
     // 2.遍历判断获取文件名, 进行相应的文件读取和存入容器
-    for( std::pair<std::string ,std::string> & pair : confMap ){
+    for( std::pair<const std::string ,std::string> & pair : confMap ){
         if ( pair.first == PageLib_FILENAME ) {
     
         }
@@ -42,5 +42,3 @@ void PageLibPreprocessor::readInfoFromFile() {
 
     // 3.读取网页库并存入 _pageLib 容器
 }
-
-void PageLibPreprocessor:
