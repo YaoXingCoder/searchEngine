@@ -9,9 +9,9 @@
 class DirScanner;
 class Configuration;
 
-#define NEW_RIPE_PAGE "./data/newwripepage.dat" // 网页库
-#define NEW_OFFSET "./data/newoffset.dat" // 网页偏移库
-#define INVERT_INDEX "./data/invertIndex.data" // 倒排索引库
+#define NEW_RIPE_PAGE "./data/newripepage.dat" // 存放 网页库
+#define NEW_OFFSET "./data/newoffset.dat" // 存放 网页偏移库
+#define INVERT_INDEX "./data/invertIndex.data" // 存放 倒排索引库
 
 #define INIT_CAPACITY 8*1024*1024 // 预留存储空间
 

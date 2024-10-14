@@ -20,107 +20,108 @@
 #include <algorithm> // for std::copy
 #include <iterator>  // for std::back_inserter
 
-
-
 /* 构造 */
-DictProducer::DictProducer(const std::string & confPathEN)
+DictProducer::DictProducer(const ConfsPath & confsPath, std::shared_ptr<SplitTool> splitTool) 
 : _filesEN()
 , _filesZN()
 , _filesSTOP()
 , _dict()
 , _dict_map()
-, _dict_stop()
 , _index()
-, _splitTool(nullptr)
-{
-    _dict.reserve(VECT_SIZE);
-    readFromConfigSTOP();
-    buildStopDict();
-    readFromConfigEN(confPathEN);
-}
-
-DictProducer::DictProducer(const std::string & confPathZN, std::shared_ptr<SplitTool> splitTool) 
-: _filesEN()
-, _filesZN()
-, _filesSTOP()
-, _dict()
-, _dict_map()
 , _dict_stop()
-, _index()
 , _splitTool(splitTool)
 {
-    _dict.reserve(VECT_SIZE);
-    readFromConfigSTOP();
-    buildStopDict();
-    readFromConfigZN(confPathZN);
-}
+    _dict.reserve(VECT_SIZE); // 预留空间
 
-DictProducer::DictProducer(const std::string & confPathEN, const std::string & confPathZN, std::shared_ptr<SplitTool> splitTool)
-: _filesEN()
-, _filesZN()
-, _filesSTOP()
-, _dict()
-, _dict_map()
-, _dict_stop()
-, _index()
-, _splitTool(splitTool)
-{
-    _dict.reserve(VECT_SIZE << 1);
-    readFromConfigSTOP();
-    buildStopDict();
-    readFromConfigEN(confPathEN);
-    readFromConfigZN(confPathZN);
+    // 判断配置路径是否为空
+    if ( !confsPath.confPathEN.empty() ) {
+        readFromConfigEN(confsPath.confPathEN);
+    }
+    if ( !confsPath.confPathZN.empty() ) {
+        readFromConfigZN(confsPath.confPathZN);
+    }
+    if ( !confsPath.confPathSTOP.empty() ) {
+        readFromConfigSTOP(confsPath.confPathSTOP);
+    }
+
+    buildDictStopWrods(); // 生成字典
+    buildIndex(); // 生成索引
 }
 
 /* 析构 */ 
 DictProducer::~DictProducer() {}
 
+/* 生成字典是否使用停用词 */
+void DictProducer::buildDictStopWrods() {
+    if ( !_filesSTOP.empty() ) {
+        buildStopDict();
+        if (  !_filesEN.empty() ) { buildEnDict(); }
+        else { std::cerr << " _filesEN is empty.\n"; }
+
+        if ( !_filesZN.empty() ) { buildCnDict(); }
+        else { std::cerr << " _filesZN is empty.\n"; }
+    } else {
+        std::cerr << " _filesSTOP is empty.\n";
+
+        if (  !_filesEN.empty() ) { buildEnDictNoStop(); }
+        else { std::cerr << " _filesEN is empty.\n"; }
+        
+        if ( !_filesZN.empty() ) { buildCnDictNoStop(); }
+        else { std::cerr << " _filesZN is empty.\n"; }
+    }
+}
+
 /* 英文路径读取 */
 void DictProducer::readFromConfigEN(const std::string & confPathEN) {
+    // 1.读取配置文件中信息
     Configuration::getInstance()->setFilePath(confPathEN);
-    std::map<std::string, std::string> map_conf = Configuration::getInstance()->getConfigMap();
-    for ( std::pair<const std::string, std::string> & pair_kv : map_conf ) {
-        _filesEN.push_back(pair_kv.second);
+    std::map<std::string, std::string> & map_conf = Configuration::getInstance()->getConfigMap();
+
+    // 2.存入容器, 判断配置文件的内容是否为空
+    if ( !map_conf.empty() ) {
+        for ( std::pair<const std::string, std::string> & pair_kv : map_conf ) {
+            _filesEN.push_back(pair_kv.second);
+        }
+    } else {
+        std::cerr << "The File of configEN may be empty\n";
+        return;
     }
 }
 /* 中文路径读取 */
 void DictProducer::readFromConfigZN(const std::string & confPathZN){
+    // 1.读取配置文件中信息
     Configuration::getInstance()->setFilePath(confPathZN);
-    std::map<std::string, std::string> map_conf = Configuration::getInstance()->getConfigMap();
-    for ( std::pair<const std::string, std::string> & pair_kv : map_conf ) {
-        _filesZN.push_back(pair_kv.second);
+    std::map<std::string, std::string> & map_conf = Configuration::getInstance()->getConfigMap();
+
+    // 2.存入容器, 判断配置文件的内容是否为空
+    if ( !map_conf.empty() ) {
+        for ( std::pair<const std::string, std::string> & pair_kv : map_conf ) {
+            _filesZN.push_back(pair_kv.second);
+        }
+    } else {
+        std::cerr << "The File of configZN may be empty\n";
+        return;
     }
 }
 /* 停用词路径读取 */
 void DictProducer::readFromConfigSTOP(const std::string & confPathStop){
+    // 1.读取配置文件中信息
     Configuration::getInstance()->setFilePath(confPathStop);
-    std::map<std::string, std::string> map_conf = Configuration::getInstance()->getConfigMap();
-    for ( std::pair<const std::string, std::string> & pair_kv : map_conf ) {
-        _filesSTOP.push_back(pair_kv.second);
-    }
-}
+    std::map<std::string, std::string> & map_conf = Configuration::getInstance()->getConfigMap();
 
-/* 测试 files 绝对文件路径 */
-void DictProducer::showFiles() const {
-    if ( !_filesEN.empty() ) {
-        for (std::string path : _filesEN) {
-            std::cout << "EN file path is " << path << "\n";
+    // 2.存入容器, 判断配置文件的内容是否为空
+    if ( !map_conf.empty() ) {
+        for ( std::pair<const std::string, std::string> & pair_kv : map_conf ) {
+            _filesSTOP.push_back(pair_kv.second);
         }
-    }
-    if (  !_filesZN.empty() ) {
-        for (std::string path : _filesZN) {
-            std::cout << "ZN file path is " << path << "\n";
-        }
-    }
-    if ( !_filesSTOP.empty() ) {
-        for (std::string path : _filesSTOP) {
-            std::cout << "STOP file path is " << path << "\n";
-        }
+    } else {
+        std::cerr << "The File of configSTOP may be empty\n";
+        return;
     }
 }
 
 /* 
-* 创建停用词词典
+* 创建停用词词典, 存入容器
 */
 void DictProducer::buildStopDict() {
     for( std::string & filePath : _filesSTOP ) {
@@ -128,7 +129,7 @@ void DictProducer::buildStopDict() {
         std::ifstream ifs(filePath);
         if ( !ifs ) { 
             std::cerr << "DictProducer buildStopDict() ifs error\n";
-            return;
+            continue;
         }
 
         // 2.循环读取并存储仅结构中
@@ -142,13 +143,24 @@ void DictProducer::buildStopDict() {
 /* 
 * 创建英文词典 
 */
+void DictProducer::dealLine(std::string & line) {
+    if ( line.empty() ) { return; } // 判空
+    for ( int i = 0; i < line.size(); ++i ) {
+        if ( !std::isalpha(line[i]) ) {
+            line[i] = ' '; // 非字符串 替换为 空格' '
+        } else {
+            line[i] = std::tolower(line[i]); // 转换为小写
+        }
+    }
+}
 void DictProducer::buildEnDict() {
+    
     for ( std::string & filePath : _filesEN) {
         // 1.打开文件
         std::ifstream ifs(filePath);
         if ( !ifs ) { 
             std::cerr << "DictProducer buildEnDict() ifs error\n";
-            return;
+            continue;
         }
 
         // 2.循环读取并分析
@@ -170,28 +182,51 @@ void DictProducer::buildEnDict() {
         ifs.close();
     }
 }
-
-void DictProducer::dealLine(std::string & line) {
-    if ( line.empty() ) { return; } // 判空
-    for ( int i = 0; i < line.size(); ++i ) {
-        if ( !std::isalpha(line[i]) ) {
-            line[i] = ' '; // 非字符串 替换为 空格' '
-        } else {
-            line[i] = std::tolower(line[i]); // 转换为小写
+void DictProducer::buildEnDictNoStop() {
+    for ( std::string & filePath : _filesEN) {
+        // 1.打开文件
+        std::ifstream ifs(filePath);
+        if ( !ifs ) { 
+            std::cerr << "DictProducer buildEnDict() ifs error\n";
+            return;
         }
+
+        // 2.循环读取并分析
+        std::string line;
+        while ( std::getline(ifs, line) ) {
+            dealLine(line); // 2.1 清洗
+
+            // 2.2 处理单词
+            std::istringstream iss(line);
+            std::string word;
+            while ( iss >> word ) { ++_dict_map[word]; } // 去重存储
+        }
+
+        // 3.关闭资源
+        ifs.close();
     }
 }
 
+
 /* 
 * 创建中文词典
+* 根据首字节获取单个字所长字节数
 */
+size_t DictProducer::getByteNum_UTF8(const char ch) {
+    int byteNum = 0;  
+    for (size_t i = 0; i < 6; ++i)  {  
+        if (ch & (1 << (7 - i))) ++byteNum;  
+        else { break; }
+    }  
+    return byteNum == 0 ? 1 : byteNum;
+}
 void DictProducer::buildCnDict() {
     for ( std::string & filePath : _filesZN) {
         // 1.打开文件
         std::ifstream ifs(filePath);
         if ( !ifs ) { 
             std::cerr << "DictProducer buildCnDict() ifs error\n";
-            return;
+            continue;
         }
 
         // 2.读取文件所有内容, 并读取到 string
@@ -218,7 +253,7 @@ void DictProducer::buildCnDict() {
 
         // 5.去重存储, 且判断是否是汉字
         for ( std::string & word : words ) {
-            if ( (_dict_stop.count(word) == 0) && (getByteNum_UTF8(word[0] == 3)) ) {
+            if ( (_dict_stop.count(word) == 0) && (getByteNum_UTF8(word[0]) == 3) ) {
                 ++_dict_map[word];
             }
         }
@@ -228,28 +263,44 @@ void DictProducer::buildCnDict() {
     }
 }
 
-/* 根据首字节获取单个字所长字节数  */ 
-size_t DictProducer::getByteNum_UTF8(const char ch) {
-    int byteNum = 0;  
-    for (size_t i = 0; i < 6; ++i)  {  
-        if (ch & (1 << (7 - i))) ++byteNum;  
-        else  break;  
-    }  
-    return byteNum == 0 ? 1 : byteNum; 
-}
+void DictProducer::buildCnDictNoStop() {
+    for ( std::string & filePath : _filesZN) {
+        // 1.打开文件
+        std::ifstream ifs(filePath);
+        if ( !ifs ) { 
+            std::cerr << "DictProducer buildCnDict() ifs error\n";
+            continue;
+        }
 
+        // 2.读取文件所有内容, 并读取到 string
+        ifs.seekg(0, std::ios::end);
+        int fileSize = ifs.tellg();
+        std::string fileContext(fileSize, '\0');
+        ifs.seekg(0, std::ios::beg);
+        ifs.read(&fileContext[0], fileSize);
 
-/* 将临时的 map 存储到 vector */
-void DictProducer::storeVecFromMap() {
-    for ( std::pair<const std::string, int> & pair : _dict_map ) {
-        _dict.push_back(pair);
-    }
-}
+        // 3.处理中文所有的\r\n
+        std::basic_string<char>::size_type i = 0;
+        std::string::iterator it = fileContext.begin();
+        while( it < fileContext.end() ) {
+            if ( *it == '\r' || *it == '\n' ) {
+                it = fileContext.erase(it); // 删除字符
+            } else {
+                ++it;
+            }
+        }
 
-/* 打印词典 */
-void DictProducer::showDict() const {
-    for (std::pair<const std::string, int> pair : _dict_map ) {
-        std::cout << "word is " << pair.first << ", frequency is " << pair.second << "\n";
+        // 4.jieba 分词
+        std::vector<std::string> words;
+        words = _splitTool->cut(fileContext);
+
+        // 5.去重存储, 且判断是否是汉字
+        for ( std::string & word : words ) {
+            if ( getByteNum_UTF8(word[0]) == 3 ) { ++_dict_map[word]; }
+        }
+
+        // 6.关闭资源
+        ifs.close();
     }
 }
 
@@ -274,6 +325,10 @@ void DictProducer::buildIndex() {
     }
 }
 
+
+/* 
+* 存储
+*/
 void DictProducer::storeDict(const std::string & filePath) {
     // 打开文件
     std::ofstream ofs(filePath);
@@ -315,4 +370,44 @@ void DictProducer::storeIndex(const std::string & filePath) {
 
 void DictProducer::pushDict(const std::string & word) {
 
+}
+
+/* 将临时的 map 存储到 vector */
+void DictProducer::storeVecFromMap() {
+    for ( std::pair<const std::string, int> & pair : _dict_map ) {
+        _dict.push_back(pair);
+    }
+}
+
+/* 测试 : files 绝对文件路径 */
+void DictProducer::showFiles() const {
+    if ( !_filesEN.empty() ) {
+        for (std::string path : _filesEN) {
+            std::cout << "EN file path is " << path << "\n";
+        }
+    }
+    if (  !_filesZN.empty() ) {
+        for (std::string path : _filesZN) {
+            std::cout << "ZN file path is " << path << "\n";
+        }
+    }
+    if ( !_filesSTOP.empty() ) {
+        for (std::string path : _filesSTOP) {
+            std::cout << "STOP file path is " << path << "\n";
+        }
+    }
+}
+
+/* 测试 : 打印词典 */
+void DictProducer::showDict() const {
+    for (std::pair<const std::string, int> pair : _dict_map ) {
+        std::cout << "word is " << pair.first << ", frequency is " << pair.second << "\n";
+    }
+}
+
+/* 测试 : 打印索引 */
+void DictProducer::showIndex() const {
+    for (std::pair<const std::string, std::set<int>> pair : _index ) {
+        std::cout << "word is " << pair.first << ", index is " << pair.second << "\n";
+    }
 }

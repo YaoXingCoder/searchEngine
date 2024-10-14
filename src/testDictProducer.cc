@@ -14,37 +14,28 @@
 
 #define YULIAO_EN_CONF_PATH "./conf/yuliao_en.conf"
 #define YULIAO_ZN_CONF_PATH "./conf/yuliao_zn.conf"
+#define CONFIG_STOP_PATH "./conf/yuliao_stop.conf" // 停用词配置文件路径
 
 /* =============== test =============== */
 void test0() {
     // 单参数英文
-    DictProducer dictPro(YULIAO_EN_CONF_PATH);
-    dictPro.showFiles();
-    dictPro.buildEnDict();
-    dictPro.storeVecFromMap();
-    dictPro.showDict();
+    ConfsPath confsPath;
+    confsPath.confPathEN = YULIAO_EN_CONF_PATH;
+    
+    DictProducer dictPro( confsPath, std::shared_ptr<SplitTool>(new SplitToolCppJieba()) );
+    dictPro.showFiles(); // 显示文件路径
+    // dictPro.showIndex();
+    // dictPro.showDict();
 }
 
 void test1() {
-    // 两个参数能够处理中文
-    std::shared_ptr<SplitTool> splitTool(new SplitToolCppJieba());
-    DictProducer dictPro(YULIAO_ZN_CONF_PATH, splitTool);
-    dictPro.showFiles();
-    dictPro.buildCnDict();
-    dictPro.storeVecFromMap();
-    dictPro.showDict();
-}
-
-void test2() {
-    // 三个参数处理中英文
-    std::shared_ptr<SplitTool> splitTool(new SplitToolCppJieba());
-    DictProducer dictPro(YULIAO_EN_CONF_PATH, YULIAO_ZN_CONF_PATH, splitTool);
-    dictPro.showFiles();
+    ConfsPath confsPath;
+    confsPath.confPathEN = YULIAO_EN_CONF_PATH;
+    confsPath.confPathZN = YULIAO_ZN_CONF_PATH;
+    confsPath.confPathSTOP = CONFIG_STOP_PATH;
     
-    dictPro.buildEnDict();
-    dictPro.buildCnDict();
-    dictPro.buildIndex();
-
+    DictProducer dictPro( confsPath, std::shared_ptr<SplitTool>(new SplitToolCppJieba()) );
+    // dictPro.showFiles(); // 显示文件路径
     dictPro.storeDict();
     dictPro.storeIndex();
 }
@@ -52,7 +43,6 @@ void test2() {
 /* =============== main =============== */
 int main (int argc, char* argv[]) {
     // test0();
-    // test1();
-    test2();
+    test1();
     return 0;
 }
