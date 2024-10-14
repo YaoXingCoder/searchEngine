@@ -17,6 +17,8 @@ bin/RssReader.o : src/RssReader.cc include/RssReader.h
 	$(CXX) -c src/RssReader.cc -o $@ $(COM_OP)
 bin/PageLib.o : src/PageLib.cc include/PageLib.h
 	$(CXX) -c src/PageLib.cc -o $@ $(COM_OP)
+bin/WebPage.o : src/WebPage.cc include/WebPage.h
+	$(CXX) -c src/WebPage.cc -o $@ $(COM_OP)
 
 
 # 测试 链接目标文件
@@ -38,6 +40,7 @@ $(DICTPRODUCER) : src/testDictProducer.cc bin/DictProducer.o bin/Configuration.o
 # 模块二
 RSSREADER := testRssReader # xml文件解析测试
 PAGELIB := testPageLib # 网页库测试
+WEBPAGE := testWebPage # 网页解析测试
 
 $(DIRSCANNER) : src/testDirScanner.cc bin/DirScanner.o bin/Configuration.o
 	$(CXX) src/testDirScanner.cc bin/DirScanner.o bin/Configuration.o -o $@ $(COM_OP)
@@ -48,10 +51,13 @@ $(RSSREADER) : src/testRssReader.cc bin/RssReader.o # 用到 -tinyxml2 库
 $(PAGELIB) : src/testPageLib.cc bin/PageLib.o bin/Configuration.o bin/DirScanner.o bin/RssReader.o # 用到 -tinyxml2 库
 	$(CXX) src/testPageLib.cc bin/PageLib.o bin/Configuration.o bin/DirScanner.o bin/RssReader.o -o $@ $(COM_OP) -ltinyxml2
 
+$(WEBPAGE) : src/testWebPage.cc bin/WebPage.o bin/Configuration.o bin/SplitTool.o
+	$(CXX) src/testWebPage.cc bin/WebPage.o bin/Configuration.o bin/SplitTool.o -o $@ $(COM_OP) -ltinyxml2
+
 
 # 清除文件
 cleanAll: cleanTest clean
 cleanTest:
-	-rm -rf $(SPLITTOOL) $(CONFIGURATION) $(DICTPRODUCER) $(DIRSCANNER) $(RSSREADER) $(PAGELIB)
+	-rm -rf $(SPLITTOOL) $(CONFIGURATION) $(DICTPRODUCER) $(DIRSCANNER) $(RSSREADER) $(PAGELIB) $(WEBPAGE)
 clean :
-	rm -rf bin/SplitTool.o bin/Configuration.o bin/DictProducer.o bin/DirScanner.o bin/RssReader.o bin/PageLib.o
+	rm -rf bin/SplitTool.o bin/Configuration.o bin/DictProducer.o bin/DirScanner.o bin/RssReader.o bin/PageLib.o bin/WebPage.o
