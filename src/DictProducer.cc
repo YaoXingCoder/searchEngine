@@ -306,7 +306,7 @@ void DictProducer::buildCnDictNoStop() {
 
 /* 
 * 创建索引
-* 遍历 _dict, 同时记录下标和
+* 遍历 _dict, 同时记录下标
 */
 void DictProducer::buildIndex() {
     int i = 0; // 记录行号, 也是下标

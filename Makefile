@@ -64,6 +64,6 @@ $(PAGELIBPREPROCESSOR) : src/testPageLibPreprocessor.cc bin/PageLibPreprocessor.
 # 清除文件
 cleanAll: cleanTest clean
 cleanTest:
-	-rm -rf $(SPLITTOOL) $(CONFIGURATION) $(DICTPRODUCER) $(DIRSCANNER) $(RSSREADER) $(PAGELIB) $(WEBPAGE)
+	-rm -rf $(SPLITTOOL) $(CONFIGURATION) $(DICTPRODUCER) $(DIRSCANNER) $(RSSREADER) $(PAGELIB) $(WEBPAGE) $(PAGELIBPREPROCESSOR)
 clean :
 	rm -rf bin/SplitTool.o bin/Configuration.o bin/DictProducer.o bin/DirScanner.o bin/RssReader.o bin/PageLib.o bin/WebPage.o bin/PageLibPreprocessor.o

@@ -133,7 +133,6 @@ void PageLib::storePages(const std::string & pagesLibPath) {
     ofs.close();
 }
 
-
 /* 偏移量写入给定文件 */
 void PageLib::storeOffset(const std::string & offsetLibPath) {
     // 1.打开给定存放文件

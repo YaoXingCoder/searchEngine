@@ -13,6 +13,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 /* 静态成员函数初始化  */
 Configuration * Configuration::_pInstance = nullptr;
@@ -48,6 +49,7 @@ Configuration * Configuration::getInstance(const std::string & filePath) {
     return _pInstance;
 }
 
+/* 重设路径, 并清空存储容器 */
 void Configuration::setFilePath(const std::string & filePath) {
     if ( filePath.empty() ) {
         std::cerr << "setFilePath is empty\n";
@@ -59,6 +61,7 @@ void Configuration::setFilePath(const std::string & filePath) {
     _configFilePath = filePath;
 }
 
+/* 获取配置路径 */
 std::string Configuration::getFilePath() {
     if ( _configFilePath.empty() ) {
         return "_configFilePath id empty";
@@ -67,6 +70,7 @@ std::string Configuration::getFilePath() {
     }
 }
 
+/* 读取配置文件内容 */
 void Configuration::readConfigFile() {
     // 0.配置路径是否空
     if ( _configFilePath.empty() ) {
@@ -82,11 +86,13 @@ void Configuration::readConfigFile() {
     }
 
     // 2.分析并存储
-    std::string key;
-    std::string val;
-    while ( std::getline(ifs, key, '=') && std::getline(ifs, val) ) {
-        if ( key[0] == '#' ) { continue; } // 注释忽略
-        // std::cout << "key = " << key << ", value = " << val << "\n";
+    std::string line;
+    while (std::getline(ifs, line)) {
+        if ( line.find('#') != std::string::npos) { continue; } // 注释忽略
+        std::istringstream iss(line);
+        std::string key, val;
+        std::getline(iss, key, '=');
+        std::getline(iss, val);
         _configs[key] = val;
     }
 

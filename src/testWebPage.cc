@@ -28,7 +28,7 @@
 void test0() {
     // 内容准备
     std::string doc(DOC);
-    std::set<std::string> stopWord{"积极", "他", "疫情", "，", ",", " "};
+    std::unordered_set<std::string> stopWord{"积极", "他", "疫情", "，", ",", " "};
 
     // 实参准备
     // std::shared_ptr<SplitTool> splitTool(new SplitToolCppJieba());
@@ -36,17 +36,18 @@ void test0() {
     WebPage webPage(doc, std::shared_ptr<SplitTool>(new SplitToolCppJieba()));
 
     // 对象初始化测试
-    webPage.processDoc(doc);
+    // webPage.processDoc(doc); // 构建后自动初始化
     // webPage.showDocItem();
 
     // 词集和top测试
     std::vector<std::string> wordsVec;
+    // webPage.calcTop(stopWord);
     webPage.calcTopK(wordsVec, stopWord, 10);
-    // webPage.showTopWords();
-    // std::cout << "----------------------------\n";
-    // for ( std::string & word : wordsVec ) {
-    //     std::cout << "word is " << word << "\n";
-    // }
+    webPage.showTopWords();
+    std::cout << "----------------------------\n";
+    for ( std::string & word : wordsVec ) {
+        std::cout << "word is " << word << "\n";
+    }
 
     // 文档获取测试
     // std::string webDoc = webPage.getDoc();
@@ -62,10 +63,10 @@ void test0() {
     //         << docItem.content << "\n";
 
     // 容器获取测试
-    std::map<std::string, int> dict = webPage.getDict();
-    for ( std::pair<const std::string, int> & pair : dict) {
-        std::cout << "word is " << pair.first << ", frequency is " << pair.second << "\n";
-    }
+    // std::map<std::string, int> dict = webPage.getDict();
+    // for ( std::pair<const std::string, int> & pair : dict) {
+    //     std::cout << "word is " << pair.first << ", frequency is " << pair.second << "\n";
+    // }
 }
 
 /* =============== main =============== */

@@ -16,6 +16,9 @@
 #include <utility>
 #include <algorithm>
 
+#define DOCID_START "<docid>"
+#define DOCID_END "</docid>"
+
 /* 构造 */ 
 WebPage::WebPage(std::string & doc, std::shared_ptr<SplitTool> splitTool)
 : _doc(doc)
@@ -24,26 +27,43 @@ WebPage::WebPage(std::string & doc, std::shared_ptr<SplitTool> splitTool)
 , _wordsMap()
 , _splitTool(splitTool)
 {
-    // _topWords.reserve(TOPK_NUMBER); // 预留空间
-
-    processDoc(doc);
+    _topWords.reserve(TOPK_NUMBER); // 预留空间
+    processDoc(doc); // 文本处理
 }
 
 /* 析构 */
 WebPage::~WebPage() {}
 
 /* 成员变量获取 */
-std::size_t WebPage::getDocId() {
+std::string & WebPage::getDoc() {
+    return _doc;
+}
+std::size_t WebPage::getDocId() const {
     return _docItem.id;
 }
 DocItem & WebPage::getDocItem() {
     return _docItem;
 }
-std::string WebPage::getDoc() {
-    return _doc;
-}
-std::map<std::string, int> & WebPage::getDict() {
+std::unordered_map<std::string, int> & WebPage::getDict() {
     return _wordsMap;
+}
+std::unordered_map<std::string, int> & WebPage::getWordsMap() {
+    return _wordsMap;
+}
+std::vector<std::string> & WebPage::getTopWords() {
+    return _topWords;
+}
+
+/* 成员变量变更 */
+void WebPage::setDocId(std::size_t newDocId) {
+    // 1.DocItem 结构中变更
+    _docItem.id = newDocId;
+
+    // 2._doc字符串中变更
+    std::size_t pos = _doc.find(DOCID_START);
+    std::string oldStr = DOCID_START + std::to_string(getDocId()) + DOCID_END;
+    std::string newStr = DOCID_START + std::to_string(newDocId) + DOCID_END;
+    _doc.replace(pos, oldStr.size(), newStr);
 }
 
 /* 文档处理 */
@@ -84,8 +104,17 @@ void WebPage::parseXML(const std::string & doc) {
     else { _docItem.content = "content is empty"; }
 }
 
+/* 获取文档top词集 */
+void WebPage::calcTop( std::unordered_set<std::string> & stopWordSet) {
+    parseContent(_docItem.content, stopWordSet);
+}
+/* 获取文档top词集, 无停用词*/
+void WebPage::calcTopNoStop() {
+    parseContentNoStop(_docItem.content);
+}
+
 /* 获取文档的topk词集 */
-void WebPage::calcTopK(std::vector<std::string> & wordsVec, std::set<std::string> & stopWordSet, int k) {
+void WebPage::calcTopK(std::vector<std::string> & wordsVec, std::unordered_set<std::string> & stopWordSet, int k) {
     // 1.处理 content 内容 : 分词->排序->放入容器
     parseContent(_docItem.content, stopWordSet);
 
@@ -94,9 +123,19 @@ void WebPage::calcTopK(std::vector<std::string> & wordsVec, std::set<std::string
         wordsVec.push_back(_topWords[i]);
     }
 }
+/* 获取文档的topk词集 */
+void WebPage::calcTopKNoStop(std::vector<std::string> & wordsVec, int k) {
+    // 1.处理 content 内容 : 分词->排序->放入容器
+    parseContentNoStop(_docItem.content);
 
-/* 处理 content 内容, 不包括停用词 */
-void WebPage::parseContent(const std::string & content, std::set<std::string> & stopWordSet) {
+    // 2.根据参数获取k个top词, 并放入给定的wordsVec中
+    for ( int i = 0; i < k && i < _topWords.size(); ++i ) {
+        wordsVec.push_back(_topWords[i]);
+    }
+}
+
+/* 处理 content 内容, 包括停用词 */
+void WebPage::parseContent(const std::string & content, std::unordered_set<std::string> & stopWordSet) {
     // 1.临时容器, 保存处理后的词
     std::vector<std::string> words;
     words = _splitTool->cut(content);
@@ -117,15 +156,61 @@ void WebPage::parseContent(const std::string & content, std::set<std::string> & 
         _topWords.push_back(wordsVec[i].first);
     }
 }
+/* 处理 content 内容, 不包括停用词 */
+void WebPage::parseContentNoStop(const std::string & content) {
+    // 1.临时容器, 保存处理后的词
+    std::vector<std::string> words;
+    words = _splitTool->cut(content);
 
-/* 测试 */
+    // 2.获取所有词和词频
+    for ( std::string & word : words ) {
+       ++_wordsMap[word];
+    }
+
+    // 3.临时vector<pair<string,int>>存储map, 同时对vector进行降序排序
+    std::vector<std::pair<std::string, int>> wordsVec(_wordsMap.begin(), _wordsMap.end());
+    std::sort(wordsVec.begin(), wordsVec.end(), [](const std::pair<std::string, int> & lhs, const std::pair<std::string, int> & rhs){
+                return lhs.second > rhs.second;
+              });
+
+    // 4.获取临时vector中文前20个, 并放入容器
+    for ( int i = 0; i < TOPK_NUMBER && i < wordsVec.size(); ++i ) {
+        _topWords.push_back(wordsVec[i].first);
+    }
+}
+
+/* 
+* 友元函数 
+* 判断两篇文章是否相等
+*/
+bool operator==(const WebPage & lhs, const WebPage & rhs) {
+    if ( lhs._docItem.content.size() != rhs._docItem.content.size() ) { 
+        return false; 
+    } 
+    else { 
+        if ( lhs._docItem.content != rhs._docItem.content ) { 
+            return false; 
+        } else { 
+            return true; 
+        }
+    }
+}
+/* 对文档 DocId 进行排序 */
+bool operator<(const WebPage & lhs, const WebPage & rhs) {
+    return lhs.getDocId() < rhs.getDocId() ? true : false;
+}
+
+/* 
+* 测试 
+* DocItem 测试
+*/
 void WebPage::showDocItem() {
     std::cout << "docId is " << _docItem.id << "\n";
     std::cout << "docTitle is " << _docItem.title << "\n";
     std::cout << "docUrl is " << _docItem.url << "\n";
     std::cout << "docContent is " << _docItem.content << "\n";
 }
-
+/* _wordsMap 词频统计 */
 void WebPage::showWordMap() {
     if ( _wordsMap.empty() ) { 
         std::cerr << "WebPage showWordMap() _wordsMap is empty\n";
@@ -136,7 +221,7 @@ void WebPage::showWordMap() {
         std::cout << "word is " << pair.first << ", frequency is " << std::to_string(pair.second) << "\n";
     }
 }
-
+/* _topWords 高频词统计 */
 void WebPage::showTopWords() {
     if ( _topWords.empty() ) {
         std::cerr << "WebPage showTopWords() _topWords is empty\n";
