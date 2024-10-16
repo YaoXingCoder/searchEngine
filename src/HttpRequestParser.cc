@@ -60,6 +60,27 @@ std::string HttpRequestParser::getBody() const {
 std::map<std::string, std::string> HttpRequestParser::getHeadField() const {
     return _mapHeadField;
 }
+/* 获取路径 */
+std::string HttpRequestParser::getQueryPath() {
+    std::string url = _strUrl;
+
+    // 找问号，
+    size_t pos1 = url.find('/');
+    size_t pos2 = url.find('?');
+
+    // 切
+    std::string query_path = url.substr(pos1 + 1, pos2 - 1);
+    return query_path;
+}
+/* 获取句子 */
+std::string HttpRequestParser::getQueryStr() {
+    std::string url = _strUrl;
+    size_t pos = url.find('=');
+
+    std::string query_str = url.substr(pos + 1);
+
+    return query_str;
+}
 
 // 静态回调函数，获取类实例并调用成员函数
 int HttpRequestParser::onMessageBegin(http_parser *pParser) {

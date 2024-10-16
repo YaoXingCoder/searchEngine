@@ -8,12 +8,20 @@
  ************************************************************************/
 
 #include "EchoServer.h"
+#include "Dictionary.h"
+#include "SplitTool.h"
 #include "TcpConnection.h" // conn 需要使用该类的成员函数
+#include "ThreadPool.h"
+#include "WebPageQuery.h"
 
 #include <iostream>
+#include <memory>
 
 #define SUGGEST "/suggest"
 #define SEARCH "/search"
+
+static Dictionary *dictionary = nullptr;
+static WebPageQuery *webPageQuery = nullptr;
 
 /*
  * std::size_t threadNum : 线程数 = 3
@@ -33,6 +41,13 @@ void EchoServer::start() {
     _server.setAllCallBack(std::bind(&EchoServer::OnConnection, this, std::placeholders::_1),
                            std::bind(&EchoServer::OnMessage, this, std::placeholders::_1),
                            std::bind(&EchoServer::OnClosed, this, std::placeholders::_1));
+    dictionary = Dictionary::getInstance();
+    dictionary->init();
+    std::cout << "dictionary success\n";
+
+    webPageQuery = new WebPageQuery(std::shared_ptr<SplitTool>(new SplitToolCppJieba()));
+    std::cout << "webPage success\n";
+
     _server.start(); // 服务器启动
 }
 
@@ -70,36 +85,45 @@ MyTask::~MyTask() {
 
 void MyTask::process() {
     std::string url = _httpReqParser.getUrl();
-    std::cout << "url = " << _httpReqParser.getBody() << "\n";
-    std::cout << _httpReqParser.getBody() << "\n";
+    std::cout << "url = " << _httpReqParser.getUrl() << "\n";
+    std::string path = _httpReqParser.getQueryPath(); // 路径
+    std::cout << "path = " << _httpReqParser.getQueryPath() << "\n";
+    std::string sentence = _httpReqParser.getQueryStr(); // 句子
+    std::cout << "sentence = " << _httpReqParser.getQueryStr() << "\n";
+
+    // std::cout << _httpReqParser.getBody() << "\n";
     std::string strHttpRes; // 响应报文
-    if (url == SUGGEST) {
-        strHttpRes += "HTTP/1.1 200 OK\r\n";
-        strHttpRes += "Cache-Control: private\r\n";
-        strHttpRes += "Content-Type: application/json; charset=utf-8\r\n";
-        strHttpRes += "Server: Microsoft-IIS/8.0\r\n";
-        strHttpRes += "X-AspNetMvc-Version: 5.2\r\n";
-        strHttpRes += "X-AspNet-Version: 4.0.30319\r\n";
-        strHttpRes += "X-Powered-By: ASP.NET\r\n";
-        strHttpRes += "Date: Sat, 24 Oct 2020 02:45:29 GMT\r\n";
-        strHttpRes += "Content-Length: 30\r\n";
-        strHttpRes += "\r\n";
-        strHttpRes += "{\"suggest\":\"ok\",\"Msg\":\"OK\"}";
-        _conn->sendToLoop(strHttpRes); // 处理结束
-    } else if (url == SEARCH) {
-        strHttpRes += "HTTP/1.1 200 OK\r\n";
-        strHttpRes += "Cache-Control: private\r\n";
-        strHttpRes += "Content-Type: application/json; charset=utf-8\r\n";
-        strHttpRes += "Server: Microsoft-IIS/8.0\r\n";
-        strHttpRes += "X-AspNetMvc-Version: 5.2\r\n";
-        strHttpRes += "X-AspNet-Version: 4.0.30319\r\n";
-        strHttpRes += "X-Powered-By: ASP.NET\r\n";
-        strHttpRes += "Date: Sat, 24 Oct 2020 02:45:29 GMT\r\n";
-        strHttpRes += "Content-Length: 30\r\n";
-        strHttpRes += "\r\n";
-        strHttpRes += "{\"search\":\"ok\",\"Msg\":\"OK\"}";
-        _conn->sendToLoop(strHttpRes); // 处理结束
-    } else {
-        _conn->sendToLoop(_httpReqParser.getHttpReq());
-    }
+
+
+    
+
+    // if (path == SUGGEST) {
+    //     strHttpRes += "HTTP/1.1 200 OK\r\n";
+    //     strHttpRes += "Cache-Control: private\r\n";
+    //     strHttpRes += "Content-Type: application/json; charset=utf-8\r\n";
+    //     strHttpRes += "Server: Microsoft-IIS/8.0\r\n";
+    //     strHttpRes += "X-AspNetMvc-Version: 5.2\r\n";
+    //     strHttpRes += "X-AspNet-Version: 4.0.30319\r\n";
+    //     strHttpRes += "X-Powered-By: ASP.NET\r\n";
+    //     strHttpRes += "Date: Sat, 24 Oct 2020 02:45:29 GMT\r\n";
+    //     strHttpRes += "Content-Length: 30\r\n";
+    //     strHttpRes += "\r\n";
+    //     strHttpRes += "{\"suggest\":\"SUGGEST\",\"Msg\":\"OK\"}";
+    //     _conn->sendToLoop(strHttpRes); // 处理结束
+    // } else if (path == SEARCH) {
+    //     strHttpRes += "HTTP/1.1 200 OK\r\n";
+    //     strHttpRes += "Cache-Control: private\r\n";
+    //     strHttpRes += "Content-Type: application/json; charset=utf-8\r\n";
+    //     strHttpRes += "Server: Microsoft-IIS/8.0\r\n";
+    //     strHttpRes += "X-AspNetMvc-Version: 5.2\r\n";
+    //     strHttpRes += "X-AspNet-Version: 4.0.30319\r\n";
+    //     strHttpRes += "X-Powered-By: ASP.NET\r\n";
+    //     strHttpRes += "Date: Sat, 24 Oct 2020 02:45:29 GMT\r\n";
+    //     strHttpRes += "Content-Length: 30\r\n";
+    //     strHttpRes += "\r\n";
+    //     strHttpRes += "{\"search\":\"SEARCH\",\"Msg\":\"OK\"}";
+    //     _conn->sendToLoop(strHttpRes); // 处理结束
+    // } else {
+    //     _conn->sendToLoop(_httpReqParser.getHttpReq());
+    // }
 }

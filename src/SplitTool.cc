@@ -10,19 +10,16 @@
 
 #include "SplitTool.h"
 
-SplitToolCppJieba::SplitToolCppJieba(const std::string& dict_path, 
-        const std::string& model_path,
-        const std::string& user_dict_path, 
-        const std::string& idfPath, 
-        const std::string& stopWordPath,
-        bool hmm)
-: _jieba(dict_path, model_path, user_dict_path, idfPath, stopWordPath)
-, _hmm(hmm)
-{}
+SplitToolCppJieba::SplitToolCppJieba(const std::string &dict_path, const std::string &model_path,
+                                     const std::string &user_dict_path, const std::string &idfPath,
+                                     const std::string &stopWordPath, bool hmm)
+    : _jieba(dict_path, model_path, user_dict_path, idfPath, stopWordPath), _hmm(hmm) {
+}
 
-SplitToolCppJieba::~SplitToolCppJieba() { }
+SplitToolCppJieba::~SplitToolCppJieba() {
+}
 
-std::vector<std::string> SplitToolCppJieba::cut(const std::string & sentence) {
+std::vector<std::string> SplitToolCppJieba::cut(const std::string &sentence) {
     std::vector<std::string> words;
     _jieba.Cut(sentence, words, _hmm);
     return words;

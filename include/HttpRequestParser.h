@@ -20,6 +20,8 @@ class HttpRequestParser {
     std::string getStatus() const;
     std::string getBody() const;
     std::map<std::string, std::string> getHeadField() const;
+    std::string getQueryPath();
+    std::string getQueryStr();
 
   private:
     void init(); // 初始化回调函数 和 对象的设置
