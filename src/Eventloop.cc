@@ -230,7 +230,7 @@ void Eventloop::wakeup() {
 void Eventloop::doPendingFunctors() {
     std::vector<Functor> tmp;
     {
-        std::lock_guard<std::mutex> lg(_mutex);
+        std::lock_guard<std::mutex> lg(_mutex); // 锁
         tmp.swap(_pendings);
     }
     for (Functor &fc : tmp) {

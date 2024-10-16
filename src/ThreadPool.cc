@@ -11,7 +11,7 @@
 
 #include <iostream>
 
-/* 构造 
+/* 构造
  * const std::size_t threadNum : 线程数 = 3
  * const std::size_t queSize : 阻塞队列大小 = 10
  */
@@ -26,9 +26,10 @@ ThreadPool::~ThreadPool() {
     }
 }
 
-/* 循环常见线程 */
+/* 循环创建线程 */
 void ThreadPool::start() {
     for (int i = 0; i < _threadNum; ++i) {
+        // _threads.push_back(std::thread(&ThreadPool::doTask, this));
         _threads.emplace_back(std::thread([this]() { this->doTask(); }));
     }
 }
@@ -38,7 +39,7 @@ void ThreadPool::stop() {
     // 1.主线程等待队列为null, (等待子线程清空阻塞队列)
     while (!_taskQue.empty()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-    } 
+    }
 
     _isExit = true;    // 标志位更新
     _taskQue.wakeup(); // 唤醒所有阻塞线程
@@ -46,7 +47,7 @@ void ThreadPool::stop() {
     // 等待所有线程结束
     for (std::thread &th : _threads) {
         th.join();
-    } 
+    }
 }
 void ThreadPool::addTask(Task &&taskcb) {
     if (taskcb) {

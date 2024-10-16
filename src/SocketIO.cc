@@ -21,6 +21,16 @@ SocketIO::SocketIO(int fd) : _fd(fd) {
 SocketIO::~SocketIO() {
 }
 
+/* 系统调用 */
+int SocketIO::readSys(char *buf, int len) {
+    return read(_fd, buf, len);
+}
+int SocketIO::writeSys(const char *buf, int len) {
+    return write(_fd, buf, len);
+}
+
+int write(int fd, char *buf, int len);
+
 /* 读取指定字节数的字符串
  * parameter char *buf : 字符串首地址, 传入传出
  * parameter len : 指定字节数
@@ -98,8 +108,8 @@ int SocketIO::writen(const char *buf, int len) {
  * 思路 : 拷贝, 判断, 读取
  */
 int SocketIO::readLine(char *buf, int len) {
-    int total = 0;
     int left = len - 1; // 流最后一位, 添加 '\0'
+    int total = 0;
     int ret = 0;
     char *pstr = buf;
 
@@ -117,25 +127,51 @@ int SocketIO::readLine(char *buf, int len) {
             break;
         } else {
 
-            // 3.循环判断拷贝的内容是否是给定的结束符
-            for (int i = 0; i < ret - 1; ++i) {
-                if ((pstr[i] == '\r') && (pstr[i + 1] == '\n')) {
-                    int str_offset = i + 2;  // 多一位存放 '\0', 字符串结束标志
-                    readn(pstr, str_offset); // 读取姐夫
-                    pstr += str_offset;      // 移动偏移量
-                    *pstr = '\0';
-                    return total + str_offset; // 返回已读取字节数
+            // 3.循环判断拷贝的内容是否是给定的结束符(\r\n)
+            // for (int idx = 0; idx < ret - 1; ++idx) {
+            //     if ((pstr[idx] == '\r') && (pstr[idx + 1] == '\n')) {
+            //         int str_offset = idx + 2; // 多一位存放 '\0', 字符串结束标志
+            //         readn(pstr, str_offset);
+            //         pstr += str_offset; // 移动偏移量
+            //         *pstr = '\0';
+            //         return total + str_offset; // 返回已读取字节数
+            //     }
+            // }
+
+            for (int idx = 0; idx < ret; ++idx) {
+                // 检查当前字符和下一个字符是否为 '\r' 和 '\n'
+                if ((pstr[idx] == '\r') && (idx + 1 < ret) && (pstr[idx + 1] == '\n')) {
+                    int str_offset = idx + 2; // 包括 '\r' 和 '\n'
+                    readn(pstr, str_offset);
+                    pstr += str_offset;
+                    *pstr = '\0'; // C风格字符串以 '\0' 结尾
+                    return total + str_offset;
                 }
             }
+
+            // for (int idx = 0; idx < ret; ++idx) {
+            //     if (pstr[idx] == '\n') {
+            //         int str_offset = idx + 1;
+            //         readn(pstr, str_offset);
+            //         pstr += str_offset;
+            //         *pstr = '\0'; // C风格字符串以'\0'结尾
+            //         return total + str_offset;
+            //     }
+            // }
 
             // 4.无给定结束标志, 正常读取
             readn(pstr, ret); // 读取len长度内容
             total += ret;     // 计算已读取字节数
-            pstr += ret;      // 移动指针
+            pstr += ret;      // 移动字符指针
             left -= ret;      // 计算仍需读取字节数
         }
     }
 
-    *pstr = '\0'; // 正常结束, 添加结束 '\0'
+    *pstr = '\n'; // 正常结束, 添加结束 '\0'
     return total;
 }
+
+/*
+ * 读取 http 请求, use http-parser-2.9.4
+ *
+ */

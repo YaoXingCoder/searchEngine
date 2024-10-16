@@ -4,7 +4,7 @@ Server := Server # 服务器
 
 # 服务器启动
 $(Server) : src/Server.cc \
-			bin/EchoServer.o bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
+			bin/EchoServer.o bin/HttpRequestParser.o bin/http_parser.o bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
 			bin/SocketIO.o bin/InetAddress.o bin/Socket.o \
 			bin/ThreadPool.o bin/TaskQueue.o
 	$(CXX) $^ -o $@ $(COM_OP)
@@ -49,6 +49,10 @@ bin/TaskQueue.o : src/TaskQueue.cc include/TaskQueue.h
 bin/ThreadPool.o : src/ThreadPool.cc include/ThreadPool.h
 	$(CXX) -c src/ThreadPool.cc -o $@ $(COM_OP)
 # 封装线程池与服务端
+bin/http_parser.o : src/http_parser.c include/http_parser.h
+	$(CXX) -c src/http_parser.c -o $@ $(COM_OP)
+bin/HttpRequestParser.o : src/HttpRequestParser.cc include/HttpRequestParser.h
+	$(CXX) -c src/HttpRequestParser.cc -o $@ $(COM_OP)
 bin/EchoServer.o : src/EchoServer.cc include/EchoServer.h
 	$(CXX) -c src/EchoServer.cc -o $@ $(COM_OP)
 
@@ -96,7 +100,7 @@ cleanAll: cleanTest clean cleanServer
 # 服务器
 cleanServer: 
 	-rm -rf $(Server) \
-			bin/EchoServer.o bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
+			bin/EchoServer.o bin/HttpRequestParser.o bin/http_parser.o bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
 			bin/SocketIO.o bin/InetAddress.o bin/Socket.o \
 			bin/ThreadPool.o bin/TaskQueue.o
 # 测试文件

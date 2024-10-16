@@ -12,7 +12,7 @@
 #include "TcpConnection.h"
 #include "TcpServer.h"
 
-#include "threadPool.h"
+#include "ThreadPool.h"
 
 #include <functional>
 #include <iostream>
@@ -53,11 +53,11 @@ void onConnection(const TcpConnectionPtr &conn) {
 
 /* 接收消息后任务 */
 void onMessage(const TcpConnectionPtr &conn) {
-    std::string msg = conn->recvive();
+    std::string msg = conn->receive();
     std::cout << ">> sever received : " << msg << std::endl;
     /* conn->send(msg); */
-    MyTask myTask(msg, conn); // 创建我的任务对象
-    p_pool->addTask(std::bind(&MyTask::process, &myTask)); // 主线程处理后, 将任务添加到任务队列
+    MyTask myTask(msg, conn); // 创建任务对象
+    p_pool->addTask(std::bind(&MyTask::process, &myTask)); // 向任务添加到阻塞队列中
 }
 
 void onClosed(const TcpConnectionPtr &conn) {

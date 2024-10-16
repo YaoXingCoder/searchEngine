@@ -21,7 +21,8 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
     ~TcpConnection();
 
   public:
-    std::string recvive();
+    std::string receive();
+    std::string readSys();
     void send(const std::string &);
     bool isColsed(); // 检测客户端是否关闭
 
@@ -54,8 +55,8 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 
   private:
     /* 打印测试 */
+    SocketIO _socketIO; // 数据传输类
     Socket _socket; // 必须定义在 InetAddress 前边, 因为InetAddress初始化时调用函数, 函数中有使用该成员类
-    SocketIO _socketIO;     // 数据传输类
     InetAddress _localAddr; // 保存 本地地址
     InetAddress _peerAddr;  // 保存 客户端地址
 

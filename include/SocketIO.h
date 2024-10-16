@@ -8,9 +8,14 @@ class SocketIO {
     ~SocketIO();
 
   public:
-    int readn(char *, int);
-    int writen(const char *, int);
-    int readLine(char *, int);
+    int readn(char *buf, int len);
+    int writen(const char *buf, int len);
+    int readLine(char *buf, int len);
+    int readSys(char *buf, int len);
+    int writeSys(const char *buf, int len);
+
+    // 读取 http 请求
+    // int readByHttp(char *buf, int len); // 待实现
 
   private:
     int _fd;

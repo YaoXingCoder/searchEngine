@@ -20,9 +20,15 @@ TcpConnection::TcpConnection(int fd, Eventloop *loop)
 TcpConnection::~TcpConnection() {
 }
 
-std::string TcpConnection::recvive() {
+/* Tcp 接收数据  */
+std::string TcpConnection::receive() {
     char buf[BUFSIZ] = {0}; // stdio 中 #define BUFSIZ 8192
     _socketIO.readLine(buf, sizeof(buf));
+    return std::string(buf);
+}
+std::string TcpConnection::readSys() {
+    char buf[BUFSIZ] = {0};
+    _socketIO.readSys(buf, sizeof(buf));
     return std::string(buf);
 }
 
