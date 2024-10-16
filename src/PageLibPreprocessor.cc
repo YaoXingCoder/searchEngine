@@ -156,7 +156,7 @@ void PageLibPreprocessor::readFromStopWrodsFile(const std::string &filePath) {
 void PageLibPreprocessor::cutRedundantPages() {
     std::cout << "## PageLibPreprocessor cutRedundantPages() 网页库去重 开始\n";
     // 1.构建 simhash
-    simhash::Simhasher simhasher(DICT_PATH_SIMHASH, HMM_PATH_SIMHASH, IDF_PATH_SIMHASH, STOP_WORD_PATH_SIMHASH);
+    simhash::Simhasher simhasher(DICT_PATH_SIMHASH, HMM_PATH_SIMHASH, IDF_PATH_SIMHASH, STOP_WORD_PATH);
     size_t topN = 5; // topN 表示特征的数量
 
     // 2.遍历所有 webPage
@@ -197,9 +197,9 @@ void PageLibPreprocessor::buildPageLibSimHash() {
     size_t newDocId = 1;
     for (int i = 0; i < _pageLib.size(); ++i) {
         if (_pageLibIdSimhash.count(_pageLib[i].getDocId()) != 0) {
-            _pageLib[i].setDocId(newDocId);                       // 变更为新的 id;
-            _pageLib[i].calcTop(_dict_stop);                      // 计算词频和 top 词
-            _pageLibSimHash.emplace_back(std::move(_pageLib[i])); // 添加到新容器
+            _pageLib[i].setDocId(newDocId);            // 变更为新的 id;
+            _pageLib[i].calcTop(_dict_stop);           // 计算词频和 top 词
+            _pageLibSimHash.emplace_back(_pageLib[i]); // 添加到新容器
             // _pageLib[i].showTopWords(); // 测试是否生成calcTop
             ++newDocId; // id自增
         }
@@ -215,15 +215,15 @@ void PageLibPreprocessor::buildPageLibSimHash() {
 void PageLibPreprocessor::buildInvertIndexTable() {
     std::cout << "## PageLibPreprocessor buildInvertIndexTable() 倒排索引生成开始\n";
     std::size_t n = _pageLibSimHash.size(); // n : 总文档数
-    int count = 0;
-    for (WebPage &webPage : _pageLibSimHash) {
+    // int count = 0;
+    for (WebPage &webPageOut : _pageLibSimHash) {
         // 1.临时容器, 存储一篇文章的单词的所有权重
         std::unordered_map<std::string, double> pageWeights;
 
         // 2.每个文章中的单词和相应词频, 循环结束则一篇中所有的单词权重统计完毕
         // int wordCount = 0;
-        for (std::string &wortTopOut : webPage.getTopWords()) {
-            std::size_t tf = webPage.getWordsMap()[wortTopOut]; // TF : 在一篇文章中出现频次
+        for (std::string &wortTopOut : webPageOut.getTopWords()) {
+            std::size_t tf = webPageOut.getWordsMap()[wortTopOut]; // TF : 在一篇文章中出现频次
 
             // 3.统计该词在在所有文章中出现的文章数
             std::size_t df = 0;
@@ -253,16 +253,16 @@ void PageLibPreprocessor::buildInvertIndexTable() {
         // 8.当前文章的所有权重归一化
         double l2Norm = 0.0;
         for (std::pair<const std::string, double> &pair : pageWeights) {
-            l2Norm += pair.second;
+            l2Norm += pow(pair.second, 2);
         }
         l2Norm = std::sqrt(l2Norm);
 
         // 9.遍历当前文章权重集合, 计算权重, 存入倒序索引容器
-        std::size_t docid = webPage.getDocId(); // 当前文章 id
+        std::size_t docid = webPageOut.getDocId(); // 当前文章 id
         for (std::pair<const std::string, double> &pair : pageWeights) {
-            double weight = weight / l2Norm;
-            _invertIndexTable[pair.first] =
-                std::set<std::pair<std::size_t, double>>{std::make_pair(webPage.getDocId(), weight)};
+            double weight = pair.second / l2Norm;                                 // 取出单个权重, 归一化
+            _invertIndexTable[pair.first].emplace(webPageOut.getDocId(), weight); // 插入容器
+            // std::set<std::pair<std::size_t, double>>{std::make_pair(webPage.getDocId(), weight)};
         }
 
         // std::cout << '\r' << "## PageLibPreprocessor buildInvertIndexTable() 已处理 " << ++count << " 篇文章";
@@ -436,7 +436,7 @@ void PageLibPreprocessor::showInvertIndexTable() {
     for (std::pair<const std::string, std::set<std::pair<size_t, double>>> &pair : _invertIndexTable) {
         std::cout << "word is " << pair.first;
         for (const std::pair<std::size_t, double> &idW : pair.second) {
-            std::cout << " " << idW.first << " " << idW.second << "\t";
+            std::cout << " " << std::to_string(idW.first) << " " << std::to_string(idW.second) << "\t";
         }
         std::cout << '\n';
     }
@@ -471,7 +471,7 @@ void PageLibPreprocessor::showInvertIndexTable() {
 //     ifs.close();
 // }
 
-/* 已丢弃排序策略  */
+/* 已丢弃排序去重策略  */
 // void PageLibPreprocessor::cutRedundantPages() {
 //     // 1.排序 : 根据文档 id 进行排序
 //     std::sort(_pageLib.begin(), _pageLib.end());
