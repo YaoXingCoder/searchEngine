@@ -23,9 +23,8 @@ class HttpRequestParser {
     std::string getQueryPath();
     std::string getQueryStr();
 
-  private:
     void init(); // 初始化回调函数 和 对象的设置
-
+  private:
     /* 静态成员函数 用于解析的函数 */
     static int onMessageBegin(http_parser *pParser);    // 数据开始接受
     static int onHeaderComplete(http_parser *pParser);  // 报文头接收完毕

@@ -23,7 +23,8 @@ SocketIO::~SocketIO() {
 
 /* 系统调用 */
 int SocketIO::readSys(char *buf, int len) {
-    return read(_fd, buf, len);
+    int ret = read(_fd, buf, len);
+    return ret;
 }
 int SocketIO::writeSys(const char *buf, int len) {
     return write(_fd, buf, len);

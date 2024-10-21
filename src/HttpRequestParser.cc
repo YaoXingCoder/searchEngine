@@ -39,7 +39,11 @@ void HttpRequestParser::init() {
     httpSettings.on_body = onBody;
 
     // 执行解析过程
-    size_t ret = http_parser_execute(&httpParser, &httpSettings, _strHttpReq.data(), _strHttpReq.size());
+    size_t ret = http_parser_execute(&httpParser, &httpSettings, _strHttpReq.data(), strlen(_strHttpReq.data()));
+    if (ret != strlen(_strHttpReq.data())) {
+        std::cerr << "http_parser protocolPaser failed: " << http_errno_name(HTTP_PARSER_ERRNO(&httpParser)) << "\n";
+        exit(-1);
+    }
 }
 
 std::string HttpRequestParser::getHttpReq() const {

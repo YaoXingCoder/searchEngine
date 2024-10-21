@@ -3,9 +3,12 @@ COM_OP := -g -I include
 Server := Server # 服务器
 
 # 服务器启动
+# bin/WebPageSearcher.o bin/WebPageQuery.o   bin/RssReader.o bin/HttpRequestParser.o
 $(Server) : src/Server.cc \
-			bin/EchoServer.o bin/WebPageQuery.o bin/WebPage.o bin/SplitTool.o bin/RssReader.o bin/Dictionary.o bin/HttpRequestParser.o \
-			bin/http_parser.o bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
+			bin/EchoServer.o \
+			bin/WebPageQuery.o bin/WebPage.o bin/Configuration.o bin/SplitTool.o \
+			bin/KeyRecommander.o bin/Dictionary.o \
+			bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
 			bin/SocketIO.o bin/InetAddress.o bin/Socket.o \
 			bin/ThreadPool.o bin/TaskQueue.o
 	$(CXX) $^ -o $@ $(COM_OP) -ltinyxml2
@@ -50,14 +53,23 @@ bin/TaskQueue.o : src/TaskQueue.cc include/TaskQueue.h
 bin/ThreadPool.o : src/ThreadPool.cc include/ThreadPool.h
 	$(CXX) -c src/ThreadPool.cc -o $@ $(COM_OP)
 # 封装线程池与服务端
-bin/http_parser.o : src/http_parser.c include/http_parser.h
-	$(CXX) -c src/http_parser.c -o $@ $(COM_OP)
-bin/HttpRequestParser.o : src/HttpRequestParser.cc include/HttpRequestParser.h
-	$(CXX) -c src/HttpRequestParser.cc -o $@ $(COM_OP)
+# 候选词
 bin/Dictionary.o : src/Dictionary.cc include/Dictionary.h
 	$(CXX) -c src/Dictionary.cc -o $@ $(COM_OP)
+bin/KeyRecommander.o : src/KeyRecommander.cc include/KeyRecommander.h
+	$(CXX) -c src/KeyRecommander.cc -o $@ $(COM_OP)
+# 网页查询
 bin/WebPageQuery.o : src/WebPageQuery.cc include/WebPageQuery.h
 	$(CXX) -c src/WebPageQuery.cc -o $@ $(COM_OP)
+
+# bin/http_parser.o : src/http_parser.c include/http_parser.h
+# 	$(CXX) -c src/http_parser.c -o $@ $(COM_OP)
+# bin/HttpRequestParser.o : src/HttpRequestParser.cc include/HttpRequestParser.h
+# 	$(CXX) -c src/HttpRequestParser.cc -o $@ $(COM_OP)
+
+# bin/WebPageSearcher.o : src/WebPageSearcher.cc include/WebPageSearcher.h
+# 	$(CXX) -c src/WebPageSearcher.cc -o $@ $(COM_OP)
+
 bin/EchoServer.o : src/EchoServer.cc include/EchoServer.h
 	$(CXX) -c src/EchoServer.cc -o $@ $(COM_OP)
 
@@ -99,19 +111,31 @@ $(WEBPAGE) : test/testWebPage.cc bin/WebPage.o bin/Configuration.o bin/SplitTool
 $(PAGELIBPREPROCESSOR) : test/testPageLibPreprocessor.cc bin/PageLibPreprocessor.o bin/WebPage.o bin/SplitTool.o bin/Configuration.o
 	$(CXX) test/testPageLibPreprocessor.cc bin/PageLibPreprocessor.o bin/WebPage.o bin/SplitTool.o bin/Configuration.o -o $@ $(COM_OP) -ltinyxml2
 
+# 在线
+DICTIONARY := testDictionary # 词典加载
+WEBPAGEQUERY := testWebPageQuery # 网页加载, 处理
+
+$(DICTIONARY) : test/testDictionary.cc bin/Dictionary.o
+	$(CXX) test/testDictionary.cc bin/Dictionary.o -o $@ $(COM_OP)
+
+$(WEBPAGEQUERY) : test/testWebPageQuery.cc bin/WebPageQuery.o bin/WebPage.o bin/Configuration.o bin/SplitTool.o
+	$(CXX) test/testWebPageQuery.cc bin/WebPageQuery.o bin/WebPage.o bin/Configuration.o bin/SplitTool.o -o $@ $(COM_OP) -ltinyxml2
 
 # 清除文件
 cleanAll: cleanTest clean cleanServer
 # 服务器
 cleanServer: 
 	-rm -rf $(Server) \
-			bin/EchoServer.o bin/WebPageQuery.o bin/Dictionary.o bin/HttpRequestParser.o \
-			bin/http_parser.o bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
+			bin/EchoServer.o \
+			bin/WebPageQuery.o bin/WebPage.o bin/Configuration.o bin/SplitTool.o \
+			bin/KeyRecommander.o bin/Dictionary.o \
+			bin/TcpServer.o bin/Eventloop.o bin/TcpConnection.o bin/Acceptor.o \
 			bin/SocketIO.o bin/InetAddress.o bin/Socket.o \
 			bin/ThreadPool.o bin/TaskQueue.o
 # 测试文件
 cleanTest:
-	-rm -rf $(SPLITTOOL) $(CONFIGURATION) $(DICTPRODUCER) $(DIRSCANNER) $(RSSREADER) $(PAGELIB) $(WEBPAGE) $(PAGELIBPREPROCESSOR)
+	-rm -rf $(SPLITTOOL) $(CONFIGURATION) $(DICTPRODUCER) $(DIRSCANNER) $(RSSREADER) $(PAGELIB) $(WEBPAGE) $(PAGELIBPREPROCESSOR) \
+			$(DICTIONARY) $(WEBPAGEQUERY)
 # 模块1/2
 clean :
 	rm -rf bin/SplitTool.o bin/Configuration.o bin/DictProducer.o \

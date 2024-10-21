@@ -5,16 +5,27 @@
     > Mail: JiaZiChunQiu@163.com
     > Title:  PageLibPreProcessor 网页预处理类 实现
     > Content:
+    > 1.遍历所有的WebPage, 对文章的content进行分词,
+    > 2.针对每篇文章的每个分词, 都需要计算权重 w = TF*IDF 算法
+    > 3.最后对权重进行归一化, 并存入
  ************************************************************************/
 
-#include "PageLibPreprocessor.h"
+#include "../simhash/Simhasher.hpp"
+
 #include "Configuration.h"
+#include "PageLibPreprocessor.h"
 #include "SplitTool.h"
 #include "WebPage.h"
 
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
+
+/* 用于使用 simhash */
+#define DICT_PATH_SIMHASH "./dict/jieba.dict.utf8"
+#define HMM_PATH_SIMHASH "./dict/hmm_model.utf8"
+#define IDF_PATH_SIMHASH "./dict/idf.utf8"
+#define STOP_WORD_PATH_SIMHASH "./dict/stop_words.utf8"
 
 /* 构造 */
 PageLibPreprocessor::PageLibPreprocessor(std::shared_ptr<SplitTool> splitTool, const std::string &confPath)
@@ -151,12 +162,12 @@ void PageLibPreprocessor::readFromStopWrodsFile(const std::string &filePath) {
 
 /*
  * 对冗余的网页进行去重
- * 存储去重后id, 到_pageLibIdSimhash容器
+ * 存储去重后 id, 到 _pageLibIdSimhash 容器
  */
 void PageLibPreprocessor::cutRedundantPages() {
     std::cout << "## PageLibPreprocessor cutRedundantPages() 网页库去重 开始\n";
     // 1.构建 simhash
-    simhash::Simhasher simhasher(DICT_PATH_SIMHASH, HMM_PATH_SIMHASH, IDF_PATH_SIMHASH, STOP_WORD_PATH);
+    simhash::Simhasher simhasher(DICT_PATH_SIMHASH, HMM_PATH_SIMHASH, IDF_PATH_SIMHASH, STOP_WORD_PATH_SIMHASH);
     size_t topN = 5; // topN 表示特征的数量
 
     // 2.遍历所有 webPage
@@ -187,7 +198,8 @@ void PageLibPreprocessor::cutRedundantPages() {
 }
 
 /*
- * 生成新的 pageLib, 去重后
+ * 生成新的 pageLib (去重后)
+ * 根据 docid, 获取 webPage 放入新容器
  */
 void PageLibPreprocessor::buildPageLibSimHash() {
     std::cout << "## PageLibPreprocessor buildPageLibSimHash() 去重网页库生成 开始\n";
@@ -200,8 +212,7 @@ void PageLibPreprocessor::buildPageLibSimHash() {
             _pageLib[i].setDocId(newDocId);            // 变更为新的 id;
             _pageLib[i].calcTop(_dict_stop);           // 计算词频和 top 词
             _pageLibSimHash.emplace_back(_pageLib[i]); // 添加到新容器
-            // _pageLib[i].showTopWords(); // 测试是否生成calcTop
-            ++newDocId; // id自增
+            ++newDocId;                                // id自增
         }
     }
 
@@ -211,63 +222,57 @@ void PageLibPreprocessor::buildPageLibSimHash() {
 /*
  * 创建倒排索引表
  * 1.遍历去重后文章
+ * 2.统计一篇文章中所有词的权重 weight, 放入临时容器
+ * 3.遍历该容器, 对权重归一化
+ * 4.存入倒排索引容器
  */
 void PageLibPreprocessor::buildInvertIndexTable() {
     std::cout << "## PageLibPreprocessor buildInvertIndexTable() 倒排索引生成开始\n";
-    std::size_t n = _pageLibSimHash.size(); // n : 总文档数
-    // int count = 0;
+
+    std::size_t n = _pageLibSimHash.size();                         // n : 总文档数
+    std::unordered_map<std::string, std::size_t> documentFrequency; // 词文档频率
+
+    // 第一步: 计算每个单词的文档频率 DF
+    for (WebPage &webPage : _pageLibSimHash) {
+        for (auto &wordFreq : webPage.getWordsMap()) {
+            documentFrequency[wordFreq.first]++; // 增加该单词的文档计数
+        }
+    }
+
+    // 第二步: 遍历每个文章，计算权重并构建倒排索引
     for (WebPage &webPageOut : _pageLibSimHash) {
-        // 1.临时容器, 存储一篇文章的单词的所有权重
+        // 1.临时容器, 存储当前文章的单词的所有权重
         std::unordered_map<std::string, double> pageWeights;
 
-        // 2.每个文章中的单词和相应词频, 循环结束则一篇中所有的单词权重统计完毕
-        // int wordCount = 0;
-        for (std::string &wortTopOut : webPageOut.getTopWords()) {
-            std::size_t tf = webPageOut.getWordsMap()[wortTopOut]; // TF : 在一篇文章中出现频次
+        for (auto &wordFreq : webPageOut.getWordsMap()) {
+            std::size_t tf = wordFreq.second; // TF : 在一篇文章中出现频次
 
-            // 3.统计该词在在所有文章中出现的文章数
-            std::size_t df = 0;
-            for (WebPage &webPageIn : _pageLibSimHash) {
-                // 4.查找每篇文章的前二十词频的单词是否有该单词
-                for (std::string &wortTopIn : webPageIn.getTopWords()) {
-                    if (wortTopOut == wortTopIn) {
-                        ++df;
-                        break;
-                    }
-                }
-            }
+            // 直接使用之前计算的 documentFrequency
+            std::size_t df = documentFrequency[wordFreq.first];
 
-            // 5.计算 IDF
+            // 计算 IDF
             double idf = std::log2((n / (df + 1)) + 1);
 
-            // 6.计算 W 权重
+            // 计算 W 权重
             double weight = tf * idf;
 
-            // 7.放入集合
-            pageWeights.emplace(wortTopOut, weight);
-
-            // std::cout << "\r" << "当前文章id 为 "  << webPage.getDocId() << ", 已处理单词个数为 " << ++wordCount;
+            // 存储当前文章的单词权重
+            pageWeights.emplace(wordFreq.first, weight);
         }
-        // std::cout << '\n';
 
-        // 8.当前文章的所有权重归一化
+        // 当前文章的所有权重归一化
         double l2Norm = 0.0;
-        for (std::pair<const std::string, double> &pair : pageWeights) {
-            l2Norm += pow(pair.second, 2);
+        for (auto &pair : pageWeights) {
+            l2Norm += std::pow(pair.second, 2);
         }
         l2Norm = std::sqrt(l2Norm);
 
-        // 9.遍历当前文章权重集合, 计算权重, 存入倒序索引容器
-        std::size_t docid = webPageOut.getDocId(); // 当前文章 id
-        for (std::pair<const std::string, double> &pair : pageWeights) {
-            double weight = pair.second / l2Norm;                                 // 取出单个权重, 归一化
+        // 遍历当前文章权重集合，计算权重并存入倒排索引容器
+        for (auto &pair : pageWeights) {
+            double weight = pair.second / l2Norm;                                 // 取出单个权重，归一化
             _invertIndexTable[pair.first].emplace(webPageOut.getDocId(), weight); // 插入容器
-            // std::set<std::pair<std::size_t, double>>{std::make_pair(webPage.getDocId(), weight)};
         }
-
-        // std::cout << '\r' << "## PageLibPreprocessor buildInvertIndexTable() 已处理 " << ++count << " 篇文章";
     }
-    // putchar('\n');
 
     std::cout << "## PageLibPreprocessor buildInvertIndexTable() 倒排索引生成结束\n";
 }
@@ -346,7 +351,7 @@ void PageLibPreprocessor::storeInvertIndexTable(const std::string &invertIndexLi
     }
 
     // 2.遍历容器, 输出到文件
-    for (std::pair<const std::string, std::set<std::pair<size_t, double>>> &pair : _invertIndexTable) {
+    for (std::pair<const std::string, std::set<std::pair<std::size_t, double>>> &pair : _invertIndexTable) {
         ofs << pair.first;
         for (const std::pair<std::size_t, double> &idW : pair.second) {
             ofs << " " << idW.first << " " << idW.second;
@@ -433,7 +438,7 @@ void PageLibPreprocessor::showInvertIndexTable() {
     std::cout << "_invertIndexTable Size is " << _invertIndexTable.size() << "\n";
 
     // 3.遍历
-    for (std::pair<const std::string, std::set<std::pair<size_t, double>>> &pair : _invertIndexTable) {
+    for (std::pair<const std::string, std::set<std::pair<std::size_t, double>>> &pair : _invertIndexTable) {
         std::cout << "word is " << pair.first;
         for (const std::pair<std::size_t, double> &idW : pair.second) {
             std::cout << " " << std::to_string(idW.first) << " " << std::to_string(idW.second) << "\t";
@@ -481,4 +486,52 @@ void PageLibPreprocessor::showInvertIndexTable() {
 
 //     // 3.去除重复元素
 //     _pageLib.erase(itLast, _pageLib.end());
+// }
+
+// void PageLibPreprocessor::buildInvertIndexTable() {
+//     std::cout << "## PageLibPreprocessor buildInvertIndexTable() 倒排索引生成开始\n";
+//     std::size_t n = _pageLibSimHash.size(); // n : 总文档数
+//     for (WebPage &webPageOut : _pageLibSimHash) {
+//
+//         std::unordered_map<std::string, double> pageWeights;
+
+//         // 2.每个文章中的单词和相应词频, 循环结束则一篇中所有的单词权重统计完毕
+//         for (std::pair<const std::string, int> &wordFreq : webPageOut.getWordsMap()) {
+//             std::size_t tf = wordFreq.second; // TF : 在一篇文章中出现频次
+
+//             // 3.统计该词在在所有文章中出现的文章数
+//             std::size_t df = 0;
+//             for (WebPage &webPageIn : _pageLibSimHash) {
+//                 // 4.查找每篇文章是否有该单词
+//                 if (webPageIn.getWordsMap().count(wordFreq.first) != 0) {
+//                     ++df;
+//                 }
+//             }
+
+//             // 5.计算 IDF
+//             double idf = std::log2((n / (df + 1)) + 1);
+
+//             // 6.计算 W 权重
+//             double weight = tf * idf;
+
+//             // 7.放入集合
+//             pageWeights.emplace(wordFreq.first, weight);
+//         }
+
+//         // 8.当前文章的所有权重归一化
+//         double l2Norm = 0.0;
+//         for (std::pair<const std::string, double> &pair : pageWeights) {
+//             l2Norm += pow(pair.second, 2);
+//         }
+//         l2Norm = std::sqrt(l2Norm);
+
+//         // 9.遍历当前文章权重集合, 计算权重, 存入倒序索引容器
+//         std::size_t docid = webPageOut.getDocId(); // 当前文章 id
+//         for (std::pair<const std::string, double> &pair : pageWeights) {
+//             double weight = pair.second / l2Norm;                                 // 取出单个权重, 归一化
+//             _invertIndexTable[pair.first].emplace(webPageOut.getDocId(), weight); // 插入容器
+//         }
+//     }
+
+//     std::cout << "## PageLibPreprocessor buildInvertIndexTable() 倒排索引生成结束\n";
 // }

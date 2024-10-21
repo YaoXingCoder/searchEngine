@@ -46,7 +46,7 @@ class MyTask {
   private:
     std::string _msg;                 // 待处理任务
     TcpConnectionPtr _conn;           // tcp 连接
-    HttpRequestParser _httpReqParser; // 解析http请求
+    // HttpRequestParser _httpReqParser; // 解析http请求
 };
 
 #endif

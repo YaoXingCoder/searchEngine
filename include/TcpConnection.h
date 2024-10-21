@@ -51,7 +51,7 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
     void handleClosedCallBack();
 
   public: // 发送消息给 EventLoop 类
-    void sendToLoop(const std::string &);
+    void sendToLoop(const std::string &msg);
 
   private:
     /* 打印测试 */

@@ -1,9 +1,8 @@
 #ifndef __PAGE_LIB_PREPROCESSOR_H__
 #define __PAGE_LIB_PREPROCESSOR_H__
 
-#include "../simhash/Simhasher.hpp"
-
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -20,12 +19,6 @@
 #define NewPageLib_PATH "./data/newripepage_pre.dat"    // 存储 : 网页库
 #define NewOffsetLib_PATH "./data/newoffsetlib_pre.dat" // 存储 : 索引库
 #define InvertIndexTable_PATH "./data/invertIndex.dat"  // 存储 : 倒排索引库存储路径
-
-/* 用于使用 simhash */
-#define DICT_PATH_SIMHASH "./dict/jieba.dict.utf8"
-#define HMM_PATH_SIMHASH "./dict/hmm_model.utf8"
-#define IDF_PATH_SIMHASH "./dict/idf.utf8"
-#define STOP_WORD_PATH_SIMHASH "./dict/stop_words.utf8"
 
 class SplitTool;
 class WebPage;
@@ -53,9 +46,8 @@ class PageLibPreprocessor {
     void showInvertIndexTable(); // 倒排索引库
 
   private:
-    void doProcess(); // 预处理
-
     /* 读取 */
+    void doProcess();                                        // 预处理
     void readFromOffsetLibFile(const std::string &filePath); // 读取 : 网页偏移库
     void readFromPageLibFile(const std::string &filePath);   // 读取 : 网页库
     void readFromStopWrodsFile(const std::string &filePath); // 读取 : 停用词 词典
@@ -74,15 +66,16 @@ class PageLibPreprocessor {
     std::shared_ptr<SplitTool> _splitTool; // 分词工具
     std::string _confPath;                 // 配置文件路径
 
-    std::unordered_set<std::string> _dict_stop;                  // 停用词 词典
-    std::vector<WebPage> _pageLib;                               // 网页库
-    std::unordered_map<std::size_t, uint64_t> _pageLibIdSimhash; // 存放去重后 id 和 uint64_t
-    std::vector<WebPage> _pageLibSimHash;                        // 去重后 网页库
+    std::unordered_set<std::string> _dict_stop;                                      // 停用词 词典
+    std::vector<WebPage> _pageLib;                                                   // 读取文件中网页库
+    std::unordered_map<std::size_t, std::pair<std::size_t, std::size_t>> _offsetLib; // 读取文件中网页偏移库
 
-    std::unordered_map<std::size_t, std::pair<std::size_t, size_t>> _offsetLib;             // 网页偏移库对象
-    std::unordered_map<std::string, std::set<std::pair<size_t, double>>> _invertIndexTable; // 倒排索引对象
+    // 存放去重后 id 和 指纹, 用于临时存放 id 和 smihash生成的指纹
+    std::unordered_map<std::size_t, uint64_t> _pageLibIdSimhash;
+    std::vector<WebPage> _pageLibSimHash;                                                        // 去重后 网页库
+    std::unordered_map<std::string, std::set<std::pair<std::size_t, double>>> _invertIndexTable; // 倒排索引对象
 
-    static const int INIT_SIZE_VEC = 4 * 1024;
+    static const int INIT_SIZE_VEC = 4 * 1024; // 初始化网页库容器大小
 };
 
 #endif

@@ -3,340 +3,414 @@
     > Author: JiaZiChunQiu
     > Created Time: 2024年10月17日 星期四 02时25分03秒
     > Mail: JiaZiChunQiu@163.com
-    > Title:
+    > Title: 网页查询库
     > Content:
  ************************************************************************/
 
-#include "WebPageQuery.h"
-// #include "../nlohmann/json.hpp"
-#include "/home/coder/searchEngine/nlohmann/json.hpp"
-#include "RssReader.h"
+#include "Configuration.h"
 #include "SplitTool.h"
 
+#include "WebPageQuery.h"
+
+#include "../nlohmann/json.hpp"
+
+#include <cmath>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <sstream>
 
-using std::cerr;
-using std::cin;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::istringstream;
-using std::map;
-using std::ostringstream;
+SimilarityDegree::SimilarityDegree(std::size_t docid, double cosineVal) : _docid(docid), _cosineVal(cosineVal) {
+}
 
-const char *const PAGELIB = "/home/coder/searchEngine/data/newoffsetlib_pre.dat";     // 去重网页库
-const char *const OFFSETLIB = "/home/coder/searchEngine/data/newoffsetlib_pre.dat";   // 偏移库
-const char *const INVERTINDEXTABLE = "/home/coder/searchEngine/data/invertIndex.dat"; // 倒排索引库
+bool operator<(const SimiarDegree &lhs, const SimiarDegree &rhs) {
+    if (lhs._cosineVal != rhs._cosineVal) {
+        return lhs._cosineVal < rhs._cosineVal;
+    } else {
+        return lhs._docid < rhs._docid;
+    }
+}
 
 WebPageQuery::WebPageQuery(std::shared_ptr<SplitTool> splitTool) : _splitTool(splitTool) {
     loadLibrary();
 }
 
-// 执行查询，返回结果
-std::string WebPageQuery::doQuery(const std::string &str) {
-    std::string result;
-    if (_invertIndexTable.count(str) != 0) {
-        // 1.表示str是一个词，在倒排索引库中可以查询到
-        set<pair<int, double>> res = _invertIndexTable[str];
-        // 2.把docid和权重放到优先队列
-        storeToQueue(res);
-        result = createJson();
-    } else {
-        // 倒排索引库中没有查询到
-        // 1.分词&去停用词
-        std::vector<std::string> query_words = _splitTool->cut(str); // 获得一个个查询词
-        /* // 2.计算查询词的基准向量 */
-        /* vector<double> Base = getQueryWordsWeightVector(query_words); */
-        // 得到的基准向量与查询词顺序一致
-        // 3.取每个词的倒排索引集，求交集
-        std::vector<std::pair<int, std::vector<double>>> intersection;
-        bool ret = executeQuery(query_words, intersection);
-        if (ret) // true取到交集，存入优先队列
-        {
-            result = createJson();
-        } else // false没有取到交集，查询失败
-        {
-            result = returnNoAnswer();
-        }
+/* 加载库文件 */
+void WebPageQuery::loadLibrary() {
+    /*
+     * 0.读取配置文件
+     */
+    Configuration::getInstance()->setFilePath(CONF_PATH);
+    std::map<std::string, std::string> &fileNameMap = Configuration::getInstance()->getConfigMap();
+    std::string pageLibPath = fileNameMap[PAGELIB_NAME];
+    std::string offsetLibPath = fileNameMap[OFFSETLIB_NAME];
+    std::string invertIndexPath = fileNameMap[INVERTINDEX_NAME];
+    std::string stopWordsEnPath = fileNameMap[STOPWORDS_EN];
+    std::string stopWordsZhPaht = fileNameMap[STOPWORDS_ZN];
+
+    /* 1.网页库 */
+    if (pageLibPath.empty()) {
+        std::cerr << "WebPageQuery loadLibrary() pageLibPath is empty\n";
+    }
+    std::ifstream ifsPageLib(pageLibPath);
+    if (!ifsPageLib) {
+        std::cerr << "WebPageQuery loadLibrary() ifsPageLib is error\n";
     }
 
-    return result;
-}
-
-void WebPageQuery::loadLibrary() // 加载库文件
-{
-    // 偏移库
-    ifstream off(OFFSETLIB);
-    if (!off.is_open()) {
-        cerr << OFFSETLIB << "open failed\n";
-        exit(-1);
+    /*
+     * 2.偏移库
+     * 网页库需要根据偏移库读取
+     */
+    if (offsetLibPath.empty()) {
+        std::cerr << "WebPageQuery loadLibrary() offsetLibPath is empty\n";
     }
-    std::string line;
-    while (std::getline(off, line)) {
-        int docid;
-        int startPos;
-        int endPos;
-        istringstream iss(line);
-        iss >> docid >> startPos >> endPos;
-
-        _offsetLib[docid] = {startPos, endPos};
+    std::ifstream ifsOffsetLib(offsetLibPath);
+    if (!ifsOffsetLib) {
+        std::cerr << "WebPageQuery loadLibrary() ifsOffsetLib is error\n";
     }
-    off.close();
+    // 2.1 按行读, 读取 docid, docOffset, docSize
+    std::string offsetLine;
+    while (std::getline(ifsOffsetLib, offsetLine)) {
+        std::istringstream iss(offsetLine);
+        std::size_t docid;
+        std::size_t docOffset;
+        std::size_t docSize;
+        iss >> docid >> docOffset >> docSize;
 
-    // 倒排索引库
-    ifstream dex(INVERTINDEXTABLE);
-    if (!dex.is_open()) {
-        cerr << "Failed to open file: " << INVERTINDEXTABLE << "\n";
-        return;
+        // 2.2 重置网页库文件内指针, 读取内容到 _pageLib
+        ifsPageLib.seekg(docOffset);
+        std::string doc(docSize, '\0');
+        ifsPageLib.read(&doc[0], docSize);
+        _pageLib.emplace_back(WebPage(doc, _splitTool));
+
+        // 2.3 偏移库信息存入 _offsetLib
+        _offsetLib[docid] = std::make_pair(docOffset, docSize);
     }
 
-    // 解析 JSON 文件
-    nlohmann::json js;
-    // dex >> js;
-
-    // 遍历 JSON 并填充到 _invertIndexTable
-    std::string lineInvertIndex;
-    while (std::getline(dex, lineInvertIndex)) {
-        std::istringstream iss(lineInvertIndex);
+    /*
+     * 3.倒排索引
+     */
+    // 3.1 打开文件
+    if (invertIndexPath.empty()) {
+        std::cerr << "WebPageQuery loadLibrary() invertIndexPath is empty\n";
+    }
+    std::ifstream ifsInvertIndex(invertIndexPath);
+    if (!ifsInvertIndex) {
+        std::cerr << "WebPageQuery loadLibrary() ifsInvertIndex is error\n";
+    }
+    // 3.2 按行读取, 存入 _invertIndexLib
+    std::string invertIndexLine;
+    while (std::getline(ifsInvertIndex, invertIndexLine)) {
+        std::istringstream iss(invertIndexLine);
         std::string word;
         iss >> word;
+
+        std::size_t docid;
         double weight;
-        int docId;
-        std::set<pair<int, double>> entrySet;
-        while (iss >> docId) {
+        while (iss >> docid) {
             iss >> weight;
-            entrySet.insert({docId, weight});
+            _invertIndexLib[word].emplace(docid, weight); // 存入容器中
         }
-        _invertIndexTable[word] = entrySet;
     }
 
-    // for (auto &[key, value] : js.items()) {
-    //     set<pair<int, double>> entrySet;
-
-    //     // 遍历 key 对应的数组，填充到 set 中
-    //     for (auto &pairArr : value) {
-    //         if (pairArr.is_array() && pairArr.size() == 2) {
-    //             int docId = pairArr[0].get<int>();
-    //             double weight = pairArr[1].get<double>();
-    //             entrySet.insert({docId, weight});
-    //         }
-    //     }
-    //     // 将 set 填入到 _invertIndexTable 中
-    //     _invertIndexTable[key] = entrySet;
-    // }
-
-    dex.close(); // 关闭资源
-
-    // 测试一把
-    for (auto a : _offsetLib) {
-        cout << a.first << " " << a.second.first << " " << a.second.second << "\n";
+    /*
+     * 4.停用词集合
+     */
+    // 4.1 英文
+    if (stopWordsEnPath.empty()) {
+        std::cerr << "WebPageQuery loadLibrary() invertIndexPath is empty\n";
+    }
+    std::ifstream ifsStopWordsEn(stopWordsEnPath);
+    if (!ifsStopWordsEn) {
+        std::cerr << "WebPageQuery loadLibrary() ifsStopWordsEn is error\n";
+    }
+    std::string word;
+    while (std::getline(ifsStopWordsEn, word)) {
+        _stopWords.emplace(word);
     }
 
-    for (auto b : _invertIndexTable) {
-        cout << b.first << ": \n";
-        for (auto c : b.second) {
-            cout << "\t";
-            cout << "[" << c.first << " : " << c.second << "] ";
-            cout << "\n";
+    // 4.2 中文
+    if (stopWordsZhPaht.empty()) {
+        std::cerr << "WebPageQuery loadLibrary() invertIndexPath is empty\n";
+    }
+    std::ifstream ifsStopWordsZh(stopWordsEnPath);
+    if (!ifsStopWordsZh) {
+        std::cerr << "WebPageQuery loadLibrary() ifsStopWordsZh is error\n";
+    }
+    while (std::getline(ifsStopWordsZh, word)) {
+        _stopWords.emplace(word);
+    }
+
+    // 4.关闭资源
+    ifsPageLib.close();
+    ifsOffsetLib.close();
+    ifsInvertIndex.close();
+    ifsStopWordsEn.close();
+    ifsStopWordsZh.close();
+}
+
+/* 执行查询, 返回结果 */
+std::string WebPageQuery::doQuery(const std::string &str) {
+    // 1.分词
+    std::vector<std::string> words = _splitTool->cut(str);
+
+    // 2.去除停用词, 并计算词频
+    std::vector<std::string> wordsNoStop;
+    for (std::string &word : words) {
+        if (_stopWords.count(word) == 0) {
+            wordsNoStop.emplace_back(word);
         }
-        cout << "\n";
+    }
+    std::cout << "wordsNoStop size is " << wordsNoStop.size() << "\n";
+    for (std::string &word : wordsNoStop) {
+        std::cout << word << " ";
+    }
+    putchar('\n');
+
+    // 3.根据分词查询倒排索引表, 遍历每个词有关的文章, 获取到有关文章的所有集合
+    std::vector<std::set<std::size_t>> wordDocidSets; // 所有的单词的对应的所有集合
+    for (std::string &word : wordsNoStop) {
+        std::set<std::size_t> setDocidPerWord;
+        for (const std::pair<std::size_t, double> &pair : _invertIndexLib[word]) {
+            setDocidPerWord.emplace(pair.first);
+        }
+        // if (setDocidPerWord.empty()) {
+        //     continue;
+        // }
+        wordDocidSets.emplace_back(setDocidPerWord);
+    }
+    // std::cout << "wordDocidSets size is " << wordDocidSets.size() << "\n";
+
+    // 4.对这些集合进行取交集运算
+    std::set<std::size_t> intersectSet = intersectSets(wordDocidSets);
+    // std::cout << "intersectSet size is " << intersectSet.size() << "\n";
+
+    // 5.计算句子中各词的权重值
+    std::unordered_map<std::string, double> wordsWeight = getQueryWordsWeightVector(wordsNoStop);
+    // std::cout << "wordsWeight size is " << wordsWeight.size() << "\n";
+
+    // 4.执行查询
+    if (executeQuery(intersectSet, wordsWeight)) {
+        return createJson();
+    } else {
+        return returnNoAnswer();
     }
 }
 
-void WebPageQuery::storeToQueue(set<pair<int, double>> &res) {
-    for (auto &ele : res) {
-        _resultQue.push(ele);
+/* 遍历倒排索引, 查找到各次的文章和在其中的权重,  */
+std::unordered_map<std::string, double> WebPageQuery::getQueryWordsWeightVector(std::vector<std::string> &queryWords) {
+    // 1.计算 TF
+    std::unordered_map<std::string, std::size_t> wordFreq; // 存储word和在句子中的频率
+    for (std::string &word : queryWords) {
+        ++wordFreq[word];
     }
+
+    // 2.计算 DF : 所有文章
+    std::unordered_map<std::string, double> pageWeights; // 临时容器, 存储句子中词的所有权重
+    for (std::pair<const std::string, std::size_t> &pair : wordFreq) {
+        std::size_t n = _pageLib.size();
+        std::size_t tf = pair.second;
+        std::size_t df = 0;
+        for (WebPage &webPage : _pageLib) {
+            if (webPage.getWordsMap().count(pair.first) != 0) {
+                ++df;
+            }
+        }
+        double idf = std::log2((n / (df + 1)) + 1); // 计算 IDF
+        double weight = tf * idf;                   // 计算每个词的权重
+        pageWeights.emplace(pair.first, weight);    // 放入权重集合
+    } // 结束, 句子中所有词, 计算结束
+
+    // 3.计算归一化中的基地
+    double l2Norm = 0.0;
+    for (std::pair<const std::string, double> &pair : pageWeights) {
+        l2Norm += pow(pair.second, 2);
+    }
+    l2Norm = std::sqrt(l2Norm);
+
+    // 4.归一化, 存入容器(单词-权重)
+    std::unordered_map<std::string, double> wordWeightMap;
+    for (std::pair<const std::string, double> &pair : pageWeights) {
+        double weight = pair.second / l2Norm; // 取出单个权重, 归一化
+        wordWeightMap[pair.first] = weight;
+    }
+
+    // 5.返回权重集合
+    return wordWeightMap;
 }
 
-std::vector<double> WebPageQuery::getQueryWordsWeightVector(
-    const std::vector<std::string> &queryWords) // 计算查询词的权重值
-{
-    // 1.计算TF:词频
-    std::map<std::string, int> TF;
-    for (auto &word : queryWords) {
-        ++TF[word];
-    }
-    // 2.计算IDF： TF中词的DF是1
-    std::map<std::string, double> IDF;
-    for (auto &word : TF) {
-        IDF[word.first] = log(1) / log(2);
-    }
-    // 3.求权重
-    // 计录权重的平方和
-    double w2_score = 0;
-    std::map<std::string, double> W;
-    for (auto &word : TF) {
-        W[word.first] = word.second * IDF[word.first];
-        w2_score += (W[word.first]) * (W[word.first]);
+// 对集合队列进行取交集运算
+std::set<std::size_t> WebPageQuery::intersectSets(const std::vector<std::set<std::size_t>> &sets) {
+    if (sets.empty()) {
+        return {}; // 返回空集
     }
 
-    // 4.归一化
-    std::map<std::string, double> W1;
-    for (auto &word : W) {
-        W1[word.first] = word.second / sqrt(w2_score);
+    // 1.用第一个进行初始化
+    std::set<std::size_t> intersection = sets[0];
+
+    // 2.遍历后序的 set
+    for (std::size_t idx = 1; idx < sets.size(); ++idx) {
+        std::set<std::size_t> currenSet = sets[idx];
+        std::set<std::size_t> tempIntersection;
+
+        // 遍历当前的集合
+        for (std::size_t element : intersection) {
+            // 如果原容器中和现容器中都有, 则为交集
+            if (currenSet.find(element) != currenSet.end()) {
+                tempIntersection.insert(element);
+            }
+        }
+
+        // 更新交集
+        intersection = tempIntersection;
+
+        // 如果交集为空, 则提前返回
+        if (intersection.empty()) {
+            break;
+        }
     }
 
-    std::vector<double> res;
-    // 为求顺序与word顺序一致
-    for (auto &word : queryWords) {
-        res.push_back(W1[word]);
-    }
-
-    return res;
+    return intersection;
 }
 
-bool WebPageQuery::executeQuery(const std::vector<std::string> &queryWords,
-                                std::vector<std::pair<int, std::vector<double>>> &resultVec) // 执行查询
-{
-    if (queryWords.empty()) {
+/*
+ * 执行查询: vector<pair<size_t, vector<double>>> docid - 集合
+ * intersect 文章的交集
+ * wordsWeight 句子分词后的单词和权重
+ */
+bool WebPageQuery::executeQuery(const std::set<std::size_t> &intersect,
+                                std::unordered_map<std::string, double> &wordsWeight) {
+
+    std::vector<std::pair<std::string, double>> wordVec;
+    for (std::pair<const std::string, double> &pair : wordsWeight) {
+        wordVec.emplace_back(pair.first, pair.second);
+    }
+
+    std::vector<std::size_t> intersectVec;
+    for (std::size_t docid : intersect) {
+        intersectVec.emplace_back(docid);
+    }
+
+    // 1.构建二维数组
+    std::size_t rowLength = intersectVec.size();
+    std::size_t colLength = wordVec.size();
+    std::size_t weightArray[rowLength + 1][colLength] = {0};
+
+    // 2.基向量初始化
+    for (int col = 0; col < colLength; ++col) {
+        weightArray[0][col] = wordVec[col].second;
+    }
+
+    // 3.填充权重
+    for (int row = 1; row <= rowLength; ++row) {
+        for (int col = 0; col < colLength; ++col) {
+            for (const std::pair<std::size_t, double> &pair : _invertIndexLib[wordVec[col].first]) {
+                if (intersectVec[row - 1] == pair.first) {
+                    weightArray[row][col] = pair.second;
+                }
+            }
+        }
+    }
+
+    // 4.使用余弦相似度算法, 遍历数组计算
+    double normalWeight1 = 0.0;
+    for (int col = 0; col < colLength; ++col) {
+        normalWeight1 += std::pow(weightArray[0][col], 2);
+    }
+    normalWeight1 = std::sqrt(normalWeight1); // 基向量的分母
+
+    for (int row = 1; row <= rowLength; ++row) {
+        // 计算获取到分子分母
+        double sumWeight = 0.0;
+        double normalWeight2 = 0.0;
+        for (int col = 0; col < colLength; ++col) {
+            normalWeight2 += std::pow(weightArray[row][col], 2);
+        }
+        normalWeight2 = std::sqrt(normalWeight2);
+        for (int col = 0; col < colLength; ++col) {
+            sumWeight += weightArray[0][col] * weightArray[row][col];
+        }
+
+        // 计算cos值, 并放入优先队列
+        double cosineVal = sumWeight / (normalWeight1 * normalWeight2);
+        _similarQueue.emplace(intersectVec[row - 1], cosineVal);
+    }
+
+    if (_similarQueue.empty()) {
         return false;
     }
-
-    set<int> resultInter;
-    // 1.首先查询每个word的docid集合
-    // // 遍历查询词库
-    for (size_t i = 0; i < queryWords.size(); ++i) {
-        set<int> wordTmp;
-        // 查找该词的docid集合
-        auto it = _invertIndexTable.find(queryWords[i]);
-        if (it != _invertIndexTable.end()) // 找到了
-        {
-            for (auto ele : it->second) {
-                // 获得该单词的docid
-                wordTmp.insert(ele.first);
-            }
-        } else // 没有找到
-        {
-            return false;
-        }
-
-        // 求交集
-        // 第一次之间插入
-        if (i == 0) {
-            resultInter = wordTmp;
-        } else {
-            set<int> resultTmp;
-
-            // 2.求交集
-            for (auto ele : resultInter) {
-                if (wordTmp.find(ele) != wordTmp.end()) // 找到了,说明结果中有
-                {
-                    resultTmp.insert(ele);
-                }
-            }
-
-            resultInter.swap(resultTmp);
-            // 已空
-            if (resultInter.empty()) {
-                return false;
-            }
-        }
-    }
-
-    // 3.获得结果
-
-    // 遍历交集set. docid
-    for (auto res : resultInter) // 获得交集中的一个docid
-    {
-        // 按照输入查询词的顺序进行构建结果
-        std::vector<double> wTmp; // 临时权重
-        for (size_t i = 0; i < queryWords.size(); ++i) {
-            std::string word = queryWords[i];
-            set<pair<int, double>> indexSet = _invertIndexTable[word];
-
-            for (auto ele : indexSet) // 查找该词中的docid的权重
-            {
-                if (ele.first == res) {
-                    wTmp.push_back(ele.second);
-                    break;
-                }
-            }
-        }
-        resultVec.push_back({res, wTmp});
-    }
-
-    // 4.余弦相似算法计算 得到每一个docid 的cos*
-    // 获得基准向量
-    std::vector<double> Base = getQueryWordsWeightVector(queryWords);
-    // 保存一定会用到的基准向量平方根
-    double Base_square_root = 0;
-    double Base_square = 0;
-    for (size_t i = 0; i < Base.size(); ++i) {
-        Base_square += Base[i] * Base[i];
-    }
-    Base_square_root = sqrt(Base_square);
-
-    // 余弦值
-    for (size_t i = 0; i < resultVec.size(); ++i) {
-        double cos = 0;
-        double doc_square_root = 0;
-        double sum = 0;
-        double square_sum = 0;
-        std::vector<double> tmp = resultVec[i].second;
-        for (size_t i = 0; i < tmp.size(); ++i) {
-            square_sum += tmp[i] * tmp[i];
-            sum += Base[i] * tmp[i];
-        }
-        doc_square_root = sqrt(square_sum);
-        cos = sum / (Base_square_root * doc_square_root);
-
-        // 存入优先队列
-        _resultQue.push({resultVec[i].first, cos});
-    }
-
     return true;
 }
 
-/* 创建Json */
 std::string WebPageQuery::createJson() {
-    // 取10篇doc
-    // 如果不满10篇，取整个优先队列
-    ifstream ifs(PAGELIB);
-    if (!ifs.is_open()) {
-        cerr << PAGELIB << " open failed\n";
-    }
-    ostringstream oss;
+    nlohmann::json returnJson;
 
-    int loop = 0;
-    if (_resultQue.size() > 10) {
-        loop = 10;
-    } else {
-        loop = _resultQue.size();
+    // 遍历优先级队列, 后去id制成json格式
+    while (!_similarQueue.empty()) {
+        SimilarityDegree similar = _similarQueue.top();
+        returnJson[similar._docid] = _pageLib[similar._docid].getDocItem().content;
+        _similarQueue.pop();
     }
 
-    for (int i = 0; i < loop; ++i) {
-        pair<int, double> tmp = _resultQue.top();
-        int startPos = _offsetLib[tmp.first].first;
-        int endPos = _offsetLib[tmp.first].second;
-
-        ifs.seekg(startPos, std::ios::beg);
-        int numBytes = endPos - startPos;
-        char *buffer = new char[numBytes + 1];
-        // 读取
-        ifs.read(buffer, numBytes);
-        buffer[numBytes] = '\0';
-
-        oss << buffer;
-        delete[] buffer;
-        _resultQue.pop();
-    }
-    ifs.close();
-
-    FileProcessor file;
-    std::string result = oss.str();
-    result = file.xmlToJson(result);
-
-    return result;
+    std::string returnStr = returnJson.dump();
+    return returnStr;
 }
 
 std::string WebPageQuery::returnNoAnswer() {
-    std::string result = "未查询到相关网页\n";
-    FileProcessor file;
-    result = file.xmlToJson(result);
-
-    return result;
+    return "Non-conforming article";
 }
+
+/*
+ * 测试容器
+ */
+void WebPageQuery::showPageLib() {
+    if (_pageLib.empty()) {
+        std::cerr << "WebPageQuery showPageLib() _pageLib is empty\n";
+        return;
+    }
+    std::cout << "_pageLib size is " << _pageLib.size() << "\n";
+
+    // for (WebPage &webPage : _pageLib) {
+    //     std::cout << webPage.getDoc() << "\n";
+    // }
+}
+void WebPageQuery::showOffsetLib() {
+    if (_offsetLib.empty()) {
+        std::cerr << "WebPageQuery showOffsetLib() _offsetLib is empty\n";
+        return;
+    }
+    std::cout << "_offsetLib size is " << _offsetLib.size() << "\n";
+    // for (std::pair<const std::size_t, std::pair<std::size_t, std::size_t>> &pair : _offsetLib) {
+    //     std::cout << pair.first << " " << pair.second.first << " " << pair.second.second << "\n";
+    // }
+}
+void WebPageQuery::showInvertIndexLib() {
+    if (_invertIndexLib.empty()) {
+        std::cerr << "WebPageQuery showInvertIndexLib() _invertIndexLib is empty\n";
+        return;
+    }
+    std::cout << "_invertIndexLib size is " << _invertIndexLib.size() << "\n";
+    for (std::pair<const std::string, std::set<std::pair<std::size_t, double>>> &pair : _invertIndexLib) {
+        std::cout << pair.first << " : ";
+        for (const std::pair<std::size_t, double> &idW : pair.second) {
+            std::cout << idW.first << " " << idW.second;
+        }
+        putchar('\n');
+    }
+}
+void WebPageQuery::showStopSet() {
+    if (_stopWords.empty()) {
+        std::cerr << "WebPageQuery showStopSet() _stopWords is empty\n";
+        return;
+    }
+    std::cout << "_stopWords size is " << _stopWords.size() << "\n";
+}
+
+// int count = 0;
+// for (const std::set<std::size_t> &wordSet : wordDocidSets) {
+//     ++count;
+//     std::cout << count << " set is ";
+//     for (std::size_t docid : wordSet) {
+//         std::cout << docid << " ";
+//     }
+//     putchar('\n');
+// }
