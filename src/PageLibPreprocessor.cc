@@ -245,19 +245,11 @@ void PageLibPreprocessor::buildInvertIndexTable() {
         std::unordered_map<std::string, double> pageWeights;
 
         for (auto &wordFreq : webPageOut.getWordsMap()) {
-            std::size_t tf = wordFreq.second; // TF : 在一篇文章中出现频次
-
-            // 直接使用之前计算的 documentFrequency
-            std::size_t df = documentFrequency[wordFreq.first];
-
-            // 计算 IDF
-            double idf = std::log2((n / (df + 1)) + 1);
-
-            // 计算 W 权重
-            double weight = tf * idf;
-
-            // 存储当前文章的单词权重
-            pageWeights.emplace(wordFreq.first, weight);
+            std::size_t tf = wordFreq.second;                   // TF : 在一篇文章中出现频次
+            std::size_t df = documentFrequency[wordFreq.first]; // 直接使用之前计算的 documentFrequency
+            double idf = std::log2((n / (df + 1)) + 1);         // 计算 IDF
+            double weight = tf * idf;                           // 计算 W 权重
+            pageWeights.emplace(wordFreq.first, weight);        // 存储当前文章的单词权重
         }
 
         // 当前文章的所有权重归一化
@@ -269,8 +261,8 @@ void PageLibPreprocessor::buildInvertIndexTable() {
 
         // 遍历当前文章权重集合，计算权重并存入倒排索引容器
         for (auto &pair : pageWeights) {
-            double weight = pair.second / l2Norm;                                 // 取出单个权重，归一化
-            _invertIndexTable[pair.first].emplace(webPageOut.getDocId(), weight); // 插入容器
+            double weight = pair.second / l2Norm;                                      // 取出单个权重，归一化
+            _invertIndexTable[pair.first].emplace_back(webPageOut.getDocId(), weight); // 放入容器
         }
     }
 
@@ -351,7 +343,7 @@ void PageLibPreprocessor::storeInvertIndexTable(const std::string &invertIndexLi
     }
 
     // 2.遍历容器, 输出到文件
-    for (std::pair<const std::string, std::set<std::pair<std::size_t, double>>> &pair : _invertIndexTable) {
+    for (std::pair<const std::string, std::vector<std::pair<std::size_t, double>>> &pair : _invertIndexTable) {
         ofs << pair.first;
         for (const std::pair<std::size_t, double> &idW : pair.second) {
             ofs << " " << idW.first << " " << idW.second;
@@ -438,7 +430,7 @@ void PageLibPreprocessor::showInvertIndexTable() {
     std::cout << "_invertIndexTable Size is " << _invertIndexTable.size() << "\n";
 
     // 3.遍历
-    for (std::pair<const std::string, std::set<std::pair<std::size_t, double>>> &pair : _invertIndexTable) {
+    for (std::pair<const std::string, std::vector<std::pair<std::size_t, double>>> &pair : _invertIndexTable) {
         std::cout << "word is " << pair.first;
         for (const std::pair<std::size_t, double> &idW : pair.second) {
             std::cout << " " << std::to_string(idW.first) << " " << std::to_string(idW.second) << "\t";

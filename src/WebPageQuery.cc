@@ -22,7 +22,7 @@
 SimilarityDegree::SimilarityDegree(std::size_t docid, double cosineVal) : _docid(docid), _cosineVal(cosineVal) {
 }
 
-bool operator<(const SimiarDegree &lhs, const SimiarDegree &rhs) {
+bool operator<(const SimilarityDegree &lhs, const SimilarityDegree &rhs) {
     if (lhs._cosineVal != rhs._cosineVal) {
         return lhs._cosineVal < rhs._cosineVal;
     } else {
@@ -108,7 +108,7 @@ void WebPageQuery::loadLibrary() {
         double weight;
         while (iss >> docid) {
             iss >> weight;
-            _invertIndexLib[word].emplace(docid, weight); // 存入容器中
+            _invertIndexLib[word].emplace_back(docid, weight); // 存入容器中
         }
     }
 
@@ -149,7 +149,14 @@ void WebPageQuery::loadLibrary() {
 }
 
 /* 执行查询, 返回结果 */
-std::string WebPageQuery::doQuery(const std::string &str) {
+void WebPageQuery::doQuery(const std::string &sentence, const TcpConnectionPtr &conn) {
+    // 0.去除'\n'
+    std::string str(sentence);
+    for (int idx = 0; idx < str.size(); ++idx) {
+        if (str[idx] == '\n') {
+            str.erase(idx, 1);
+        }
+    }
     // 1.分词
     std::vector<std::string> words = _splitTool->cut(str);
 
@@ -160,11 +167,6 @@ std::string WebPageQuery::doQuery(const std::string &str) {
             wordsNoStop.emplace_back(word);
         }
     }
-    std::cout << "wordsNoStop size is " << wordsNoStop.size() << "\n";
-    for (std::string &word : wordsNoStop) {
-        std::cout << word << " ";
-    }
-    putchar('\n');
 
     // 3.根据分词查询倒排索引表, 遍历每个词有关的文章, 获取到有关文章的所有集合
     std::vector<std::set<std::size_t>> wordDocidSets; // 所有的单词的对应的所有集合
@@ -173,26 +175,35 @@ std::string WebPageQuery::doQuery(const std::string &str) {
         for (const std::pair<std::size_t, double> &pair : _invertIndexLib[word]) {
             setDocidPerWord.emplace(pair.first);
         }
-        // if (setDocidPerWord.empty()) {
-        //     continue;
-        // }
+        if (setDocidPerWord.empty()) {
+            continue;
+        }
         wordDocidSets.emplace_back(setDocidPerWord);
     }
-    // std::cout << "wordDocidSets size is " << wordDocidSets.size() << "\n";
+    int count = 1;
+    for (std::set<std::size_t> &wordDocidSet : wordDocidSets) {
+        std::cout << "setNum is " << count << " : ";
+        for (std::size_t num : wordDocidSet) {
+            std::cout << num << " ";
+        }
+        ++count;
+        putchar('\n');
+    }
+    std::cout << "wordDocidSets size is " << wordDocidSets.size() << "\n";
 
     // 4.对这些集合进行取交集运算
     std::set<std::size_t> intersectSet = intersectSets(wordDocidSets);
-    // std::cout << "intersectSet size is " << intersectSet.size() << "\n";
+    std::cout << "intersectSet size is " << intersectSet.size() << "\n";
 
     // 5.计算句子中各词的权重值
     std::unordered_map<std::string, double> wordsWeight = getQueryWordsWeightVector(wordsNoStop);
-    // std::cout << "wordsWeight size is " << wordsWeight.size() << "\n";
+    std::cout << "wordsWeight size is " << wordsWeight.size() << "\n";
 
     // 4.执行查询
     if (executeQuery(intersectSet, wordsWeight)) {
-        return createJson();
+        conn->sendToLoop(createJson());
     } else {
-        return returnNoAnswer();
+        conn->sendToLoop(returnNoAnswer());
     }
 }
 
@@ -247,7 +258,7 @@ std::set<std::size_t> WebPageQuery::intersectSets(const std::vector<std::set<std
     // 1.用第一个进行初始化
     std::set<std::size_t> intersection = sets[0];
 
-    // 2.遍历后序的 set
+    // 2.遍历后续的 sets
     for (std::size_t idx = 1; idx < sets.size(); ++idx) {
         std::set<std::size_t> currenSet = sets[idx];
         std::set<std::size_t> tempIntersection;
@@ -293,14 +304,14 @@ bool WebPageQuery::executeQuery(const std::set<std::size_t> &intersect,
     // 1.构建二维数组
     std::size_t rowLength = intersectVec.size();
     std::size_t colLength = wordVec.size();
-    std::size_t weightArray[rowLength + 1][colLength] = {0};
+    double weightArray[rowLength + 1][colLength] = {0};
 
     // 2.基向量初始化
     for (int col = 0; col < colLength; ++col) {
         weightArray[0][col] = wordVec[col].second;
     }
 
-    // 3.填充权重
+    // 3.填充二维数组的权重
     for (int row = 1; row <= rowLength; ++row) {
         for (int col = 0; col < colLength; ++col) {
             for (const std::pair<std::size_t, double> &pair : _invertIndexLib[wordVec[col].first]) {
@@ -316,22 +327,29 @@ bool WebPageQuery::executeQuery(const std::set<std::size_t> &intersect,
     for (int col = 0; col < colLength; ++col) {
         normalWeight1 += std::pow(weightArray[0][col], 2);
     }
-    normalWeight1 = std::sqrt(normalWeight1); // 基向量的分母
+    normalWeight1 = std::sqrt(normalWeight1);                                             // 基向量的分母
+    std::cout << "WebPageQuery::executeQuery normalWeight1 is " << normalWeight1 << "\n"; // 0
 
     for (int row = 1; row <= rowLength; ++row) {
         // 计算获取到分子分母
         double sumWeight = 0.0;
         double normalWeight2 = 0.0;
+
+        // 计算分母的其他向量的分母
         for (int col = 0; col < colLength; ++col) {
             normalWeight2 += std::pow(weightArray[row][col], 2);
         }
         normalWeight2 = std::sqrt(normalWeight2);
+        std::cout << "WebPageQuery::executeQuery normalWeight2 is " << normalWeight2 << "\n"; // 0
+
+        // 计算分子
         for (int col = 0; col < colLength; ++col) {
             sumWeight += weightArray[0][col] * weightArray[row][col];
         }
 
         // 计算cos值, 并放入优先队列
         double cosineVal = sumWeight / (normalWeight1 * normalWeight2);
+        std::cout << "WebPageQuery::executeQuery() cosineVal is " << cosineVal << "\n";
         _similarQueue.emplace(intersectVec[row - 1], cosineVal);
     }
 
@@ -347,7 +365,8 @@ std::string WebPageQuery::createJson() {
     // 遍历优先级队列, 后去id制成json格式
     while (!_similarQueue.empty()) {
         SimilarityDegree similar = _similarQueue.top();
-        returnJson[similar._docid] = _pageLib[similar._docid].getDocItem().content;
+        std::string docid = std::to_string(similar._docid);
+        returnJson[docid] = _pageLib[similar._docid - 1].getDocItem().content;
         _similarQueue.pop();
     }
 
@@ -389,7 +408,7 @@ void WebPageQuery::showInvertIndexLib() {
         return;
     }
     std::cout << "_invertIndexLib size is " << _invertIndexLib.size() << "\n";
-    for (std::pair<const std::string, std::set<std::pair<std::size_t, double>>> &pair : _invertIndexLib) {
+    for (std::pair<const std::string, std::vector<std::pair<std::size_t, double>>> &pair : _invertIndexLib) {
         std::cout << pair.first << " : ";
         for (const std::pair<std::size_t, double> &idW : pair.second) {
             std::cout << idW.first << " " << idW.second;

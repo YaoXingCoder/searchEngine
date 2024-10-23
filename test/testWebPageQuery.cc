@@ -32,7 +32,7 @@ void test0() {
     //     "6亿港元。林郑月娥在接受媒体访问时说，她觉得特区政府“这个钱花得很有价值”。“让香港青年在内地慢慢住下来，了解内地"
     //     "，交一些朋友，认可在大湾区就业是一个好选择。");
 
-    std::string webPage = webPageQuery.doQuery("大湾区青年就业计划");
+    std::string webPage = webPageQuery.doQueryTest("大湾区青年就业计划");
     std::cout << webPage << "\n";
 
     /* 测试容器 */

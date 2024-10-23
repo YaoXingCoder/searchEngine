@@ -3,7 +3,7 @@ COM_OP := -g -I include
 Server := Server # 服务器
 
 # 服务器启动
-# bin/WebPageSearcher.o bin/WebPageQuery.o   bin/RssReader.o bin/HttpRequestParser.o
+# bin/HttpRequestParser.o
 $(Server) : src/Server.cc \
 			bin/EchoServer.o \
 			bin/WebPageQuery.o bin/WebPage.o bin/Configuration.o bin/SplitTool.o \

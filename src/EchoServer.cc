@@ -22,7 +22,7 @@
 #define SEARCH "search"
 
 static Dictionary *dictionary = nullptr;
-static WebPageQuery *webPageQuery = nullptr;
+static std::unique_ptr<WebPageQuery> webPageQuery = nullptr;
 
 /*
  * std::size_t threadNum : 线程数 = 3
@@ -47,7 +47,7 @@ void EchoServer::start() {
     dictionary = Dictionary::getInstance();
     std::cout << "dictionary success\n";
 
-    std::unique_ptr<WebPageQuery> webPageQuery(new WebPageQuery(std::shared_ptr<SplitTool>(new SplitToolCppJieba())));
+    webPageQuery.reset(new WebPageQuery(std::shared_ptr<SplitTool>(new SplitToolCppJieba())));
     std::cout << "webPageQuery success\n";
 
     _server.start(); // 服务器启动
@@ -85,9 +85,12 @@ MyTask::~MyTask() {
 
 void MyTask::process() {
     // 1.测试候选词
-    KeyRecommander keyRecommander(_msg, _conn);
-    keyRecommander.executeQuery();
-    keyRecommander.response();
+    // KeyRecommander keyRecommander(_msg, _conn);
+    // keyRecommander.executeQuery();
+    // keyRecommander.response();
+
+    // 2.测试网页查询
+    // webPageQuery->doQuery(_msg, _conn);
 }
 
 // std::string url = _httpReqParser.getUrl();

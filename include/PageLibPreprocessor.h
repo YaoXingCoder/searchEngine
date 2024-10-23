@@ -30,7 +30,7 @@ class PageLibPreprocessor {
 
     void readInfoFromFile();  // 读取 : 根据配置信息读取网页库和位置偏移库的内容
     void cutRedundantPages(); // 去重 : 对冗余的网页进行去重
-
+    
     void buildInvertIndexTable(); // 生成 : 倒排索引表
 
     // 将经过预处理后的网页库、位置偏移库、倒排索引写回磁盘
@@ -73,7 +73,7 @@ class PageLibPreprocessor {
     // 存放去重后 id 和 指纹, 用于临时存放 id 和 smihash生成的指纹
     std::unordered_map<std::size_t, uint64_t> _pageLibIdSimhash;
     std::vector<WebPage> _pageLibSimHash;                                                        // 去重后 网页库
-    std::unordered_map<std::string, std::set<std::pair<std::size_t, double>>> _invertIndexTable; // 倒排索引对象
+    std::unordered_map<std::string, std::vector<std::pair<std::size_t, double>>> _invertIndexTable; // 倒排索引对象
 
     static const int INIT_SIZE_VEC = 4 * 1024; // 初始化网页库容器大小
 };
